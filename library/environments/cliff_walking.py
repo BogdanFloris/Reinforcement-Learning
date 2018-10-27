@@ -6,6 +6,8 @@ UP = 0
 RIGHT = 1
 DOWN = 2
 LEFT = 3
+ROWS = 4
+COLUMNS = 12
 
 
 class CliffWalkingEnv(discrete.DiscreteEnv):
@@ -15,11 +17,11 @@ class CliffWalkingEnv(discrete.DiscreteEnv):
     Reinforcement Learning: An Introduction by Sutton and Barto.
 
     This variant is slightly different from the one in the book.
-    The board is a 5x10 with the following properties:
-        [4, 0] is the starting state
-        [4, 9] is the end state
-        [4, 1..8] is the cliff
-    All transitions have a reward of -1, while stepping off the cliff ([4, 1..9])
+    The board is a ROWSxCOLUMNS with the following properties:
+        [ROWS - 1, 0] is the starting state
+        [ROWS - 1, COLUMNS - 1] is the end state
+        [ROWS - 1, 1..COLUMNS - 2] is the cliff
+    All transitions have a reward of -1, while stepping off the cliff ([ROWS - 1, 1..COLUMNS - 2])
     has a reward of -100. Reaching the end state incurs a rewards of +10.
     Inspiration for the code:
     https://github.com/openai/gym/blob/master/gym/envs/toy_text/cliffwalking.py
@@ -27,15 +29,15 @@ class CliffWalkingEnv(discrete.DiscreteEnv):
     metadata = {'render.modes': ['human', 'ansi']}
 
     def __init__(self):
-        self.shape = (5, 10)
-        self.start_state_index = np.ravel_multi_index((4, 0), self.shape)
+        self.shape = (ROWS, COLUMNS)
+        self.start_state_index = np.ravel_multi_index((ROWS - 1, 0), self.shape)
 
         state_count: int = np.prod(self.shape)
         action_count = 4
 
         # Cliff location
         self._cliff = np.zeros(self.shape, dtype=np.bool)
-        self._cliff[4, 1:-1] = True
+        self._cliff[ROWS - 1, 1:-1] = True
 
         # Calculate transition probabilities and rewards
         transition_prob = {}
@@ -91,12 +93,46 @@ class CliffWalkingEnv(discrete.DiscreteEnv):
             position = np.unravel_index(s, self.shape)
             if self.s == s:
                 output = " x "
-            elif position == (4, 9):
+            elif position == (ROWS - 1, COLUMNS - 1):
                 output = " G "
             elif self._cliff[position]:
                 output = " C "
             else:
                 output = " o "
+
+            if position[1] == 0:
+                output = output.lstrip()
+            if position[1] == self.shape[1] - 1:
+                output = output.rstrip()
+                output += '\n'
+
+            outfile.write(output)
+        outfile.write('\n')
+
+    def render_policy(self, policy):
+        """
+        Renders the policy of the grid using the given policy function
+        :param policy: the policy function given
+        """
+        outfile = sys.stdout
+
+        for s in range(self.nS):
+            position = np.unravel_index(s, self.shape)
+            if position == (ROWS - 1, COLUMNS - 1):
+                output = " G "
+            elif self._cliff[position]:
+                output = " C "
+            else:
+                action_prob = policy(s)
+                action = np.random.choice(np.arange(len(action_prob)), p=action_prob)
+                if action == 0:
+                    output = " \u2191 "
+                elif action == 1:
+                    output = " \u2192 "
+                elif action == 2:
+                    output = " \u2193 "
+                else:
+                    output = " \u2190 "
 
             if position[1] == 0:
                 output = output.lstrip()
