@@ -30,29 +30,29 @@ class CliffWalkingEnv(discrete.DiscreteEnv):
         self.shape = (5, 10)
         self.start_state_index = np.ravel_multi_index((4, 0), self.shape)
 
-        nS: int = np.prod(self.shape)
-        nA = 4
+        state_count: int = np.prod(self.shape)
+        action_count = 4
 
         # Cliff location
         self._cliff = np.zeros(self.shape, dtype=np.bool)
         self._cliff[4, 1:-1] = True
 
         # Calculate transition probabilities and rewards
-        P = {}
-        for s in range(nS):
+        transition_prob = {}
+        for s in range(state_count):
             position = np.unravel_index(s, self.shape)
-            P[s] = {a: [] for a in range(nA)}
-            P[s][UP] = self._calculate_transition_prob(position, [-1, 0])
-            P[s][RIGHT] = self._calculate_transition_prob(position, [0, 1])
-            P[s][DOWN] = self._calculate_transition_prob(position, [1, 0])
-            P[s][LEFT] = self._calculate_transition_prob(position, [0, -1])
+            transition_prob[s] = {a: [] for a in range(action_count)}
+            transition_prob[s][UP] = self._calculate_transition_prob(position, [-1, 0])
+            transition_prob[s][RIGHT] = self._calculate_transition_prob(position, [0, 1])
+            transition_prob[s][DOWN] = self._calculate_transition_prob(position, [1, 0])
+            transition_prob[s][LEFT] = self._calculate_transition_prob(position, [0, -1])
 
         # Calculate initial state distribution
         # We always start in state (4, 0)
-        isd = np.zeros(nS)
+        isd = np.zeros(state_count)
         isd[self.start_state_index] = 1.0
 
-        super(CliffWalkingEnv, self).__init__(nS, nA, P, isd)
+        super(CliffWalkingEnv, self).__init__(state_count, action_count, transition_prob, isd)
 
     def _calculate_transition_prob(self, current, delta):
         """
