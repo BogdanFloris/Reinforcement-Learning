@@ -7,7 +7,7 @@ from collections import defaultdict
 from library import plotting
 
 
-def sarsa(env, num_episodes: int, discount_factor=0.1, alpha=0.5, epsilon=0.1):
+def sarsa(env, num_episodes: int, discount_factor=1.0, alpha=0.5, epsilon=0.1):
     """
     SARSA (on-policy control) algorithm implementation as described on page 130
     of the book Reinforcement Learning: An Introduction by Sutton and Barto.
