@@ -1,12 +1,16 @@
 from library.environments.cliff_walking import CliffWalkingEnv
-from TemporalDifferenceLearning.temporal_diff_learning import sarsa, make_epsilon_greedy_policy
+from TemporalDifferenceLearning.temporal_diff_learning import sarsa, q_learning, make_epsilon_greedy_policy
 
-num_episodes = 100
+num_episodes = 200
 epsilon = 0.0
+learning = "Q-Learning"
 env = CliffWalkingEnv()
-q, stats = sarsa(env, num_episodes)
+if learning == "SARSA":
+    q, _ = sarsa(env, num_episodes)
+elif learning == "Q-Learning":
+    q, _ = q_learning(env, num_episodes)
 policy = make_epsilon_greedy_policy(q=q, epsilon=epsilon, action_count=env.action_space.n)
-print("Policy after {} episodes of SARSA".format(num_episodes))
+print("Policy after {} episodes of {}".format(num_episodes, learning))
 env.render_policy(policy)
 
 
