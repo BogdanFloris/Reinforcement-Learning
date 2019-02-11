@@ -1,5 +1,5 @@
 from library.environments.cliff_walking import CliffWalkingEnv
-from td_learning.temporal_diff_learning import sarsa, q_learning, make_epsilon_greedy_policy
+from library.td_learning import sarsa, q_learning, make_epsilon_greedy_policy
 
 num_episodes = 1000
 epsilon = 0.1

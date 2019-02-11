@@ -23,7 +23,7 @@ class Agent:
     def choose_action(self):
         """
         Chooses an action based on the policy
-        :return: the action to be player
+        :return: the action to be played
         """
         action = self.policy.choose(self)
         return action
@@ -36,8 +36,7 @@ class Agent:
         :param reward: the reward that was received
         """
         self.action_choices[action] += 1
-        self.Q[action] += + 1 / self.action_choices[action] * (
-                reward - self.Q[action])
+        self.Q[action] += 1 / self.action_choices[action] * (reward - self.Q[action])
         self.t += 1
 
     @property
@@ -67,14 +66,14 @@ class Bandit:
     def __init__(self, mu=0, sigma=1):
         self.mu = mu
         self.sigma = sigma
-        self.reward = None
+        self.reward_mean = None
         self.reset()
 
     def reset(self):
-        self.reward = np.random.normal(self.mu, self.sigma)
+        self.reward_mean = np.random.normal(self.mu, self.sigma)
 
     def get_reward(self):
-        return self.reward
+        return np.random.normal(self.reward_mean, self.sigma)
 
 
 class Policy:
