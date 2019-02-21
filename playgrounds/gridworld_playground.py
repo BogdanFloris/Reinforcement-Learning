@@ -1,10 +1,10 @@
 from library.environments.gridworld import GridWorldEnv
-from library.td_learning import sarsa, q_learning, make_epsilon_greedy_policy
+from library.td_learning.temporal_diff_learning import sarsa, q_learning, make_epsilon_greedy_policy
 
 num_episodes = 1000
 epsilon = 0.0
 learning_algorithms = ["SARSA", "Q-Learning"]
-learning = learning_algorithms[0]
+learning = learning_algorithms[1]
 env = GridWorldEnv()
 if learning == "SARSA":
     q, _ = sarsa(env, num_episodes, epsilon=epsilon)

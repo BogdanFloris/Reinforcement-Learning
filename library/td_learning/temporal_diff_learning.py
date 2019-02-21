@@ -28,7 +28,7 @@ def q_learning(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, e
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
     # initialize the policy
-    policy: function = make_epsilon_greedy_policy(q, epsilon, env.action_space.n)
+    policy = make_epsilon_greedy_policy(q, epsilon, env.action_space.n)
     # loop for each episode
     for episode in range(num_episodes):
         # initialize the state
@@ -44,7 +44,8 @@ def q_learning(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, e
             stats.episode_lengths[episode] = t
             # q learning update
             best_next_action = np.argmax(q[next_state])
-            q[state][action] += alpha * (reward + discount_factor * q[next_state][best_next_action] - q[state][action])
+            q[state][action] += alpha * (reward + discount_factor *
+                                         q[next_state][best_next_action] - q[state][action])
             # check for finished episode
             if done:
                 break
@@ -74,7 +75,7 @@ def sarsa(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, epsilo
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
     # initialize the policy
-    policy: function = make_epsilon_greedy_policy(q, epsilon, env.action_space.n)
+    policy = make_epsilon_greedy_policy(q, epsilon, env.action_space.n)
     # loop for each episode
     for episode in range(num_episodes):
         # initialize state
