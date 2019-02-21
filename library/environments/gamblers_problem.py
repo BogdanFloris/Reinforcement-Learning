@@ -71,6 +71,7 @@ class GamblersProblem(Env):
 
     def reset(self):
         self.state = self.np_random.choice(range(1, MAX_CAPITAL))
+        return self.state
 
     def render(self, mode='human'):
         outfile = sys.stdout

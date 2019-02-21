@@ -7,7 +7,8 @@ from collections import defaultdict
 from library import plotting
 
 
-def q_learning(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, epsilon=0.1):
+def q_learning(env, num_episodes: int, q=None, discount_factor=1.0,
+               alpha=0.5, epsilon=0.1, distribute_prob=True):
     """
     Q-Learning (off-policy control) algorithm implementation as described on page 131
     of the book Reinforcement Learning: An Introduction by Sutton and Barto.
@@ -17,6 +18,8 @@ def q_learning(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, e
     :param discount_factor: The gamma discount factor
     :param alpha: The learning rate
     :param epsilon: Chance to sample a random action
+    :param distribute_prob: Whether or not to distribute the probability between best actions
+                            or just choose the first best action an assign it all the probability mass.
     :return: a tuple (q, stats) with q the optimal value function,
              and stats, statistics to be used for plotting
     """
@@ -28,7 +31,7 @@ def q_learning(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, e
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
     # initialize the policy
-    policy = make_epsilon_greedy_policy(q, epsilon, env.action_space.n)
+    policy = make_epsilon_greedy_policy(q, epsilon, env.action_space.n, distribute_prob)
     # loop for each episode
     for episode in range(num_episodes):
         # initialize the state
@@ -54,7 +57,8 @@ def q_learning(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, e
     return q, stats
 
 
-def sarsa(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, epsilon=0.1):
+def sarsa(env, num_episodes: int, q=None, discount_factor=1.0,
+          alpha=0.5, epsilon=0.1, distribute_prob=True):
     """
     SARSA (on-policy control) algorithm implementation as described on page 130
     of the book Reinforcement Learning: An Introduction by Sutton and Barto.
@@ -64,6 +68,8 @@ def sarsa(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, epsilo
     :param discount_factor: The gamma discount factor
     :param alpha: The learning rate
     :param epsilon: Chance to sample a random action
+    :param distribute_prob: Whether or not to distribute the probability between best actions
+                            or just choose the first best action an assign it all the probability mass.
     :return: a tuple (q, stats) with q the optimal value function,
              and stats, statistics to be used for plotting
     """
@@ -75,7 +81,7 @@ def sarsa(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, epsilo
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
     # initialize the policy
-    policy = make_epsilon_greedy_policy(q, epsilon, env.action_space.n)
+    policy = make_epsilon_greedy_policy(q, epsilon, env.action_space.n, distribute_prob)
     # loop for each episode
     for episode in range(num_episodes):
         # initialize state
@@ -105,19 +111,29 @@ def sarsa(env, num_episodes: int, q=None, discount_factor=1.0, alpha=0.5, epsilo
     return q, stats
 
 
-def make_epsilon_greedy_policy(q: dict, epsilon: float, action_count: int):
+def make_epsilon_greedy_policy(q: dict, epsilon: float, action_count: int, distribute_prob=True):
     """
     This function creates an epsilon greedy policy based on the given Q.
     :param q: A dictionary that maps from a state to the action values
               for all possible nA actions (represented as an array)
     :param epsilon: Probability to select a random action
     :param action_count: Number of actions
+    :param distribute_prob: Whether or not to distribute the probability between best actions
+                            or just choose the first best action an assign it all the probability mass.
     :return: A function that takes as argument an observation and returns
              the probabilities of each action.
     """
+    if q is None:
+        raise ValueError('Q is None')
+
     def policy_func(observation):
         actions = np.ones(action_count, dtype=float) * epsilon / action_count
-        best_action = np.argmax(q[observation])
-        actions[best_action] += (1.0 - epsilon)
+        if distribute_prob:
+            best_actions = np.argwhere(q[observation] == np.max(q[observation])).flatten()
+            for i in best_actions:
+                actions[i] += (1.0 - epsilon) / len(best_actions)
+        else:
+            best_action = np.argmax(q[observation])
+            actions[best_action] += (1.0 - epsilon)
         return actions
     return policy_func

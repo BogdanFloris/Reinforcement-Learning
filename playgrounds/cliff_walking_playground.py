@@ -12,18 +12,6 @@ elif learning == "Q-Learning":
     q, _ = q_learning(env, num_episodes, epsilon=epsilon)
 else:
     q = None
-policy = make_epsilon_greedy_policy(q=q, epsilon=epsilon, action_count=env.action_space.n)
+policy = make_epsilon_greedy_policy(q=q, epsilon=0.0, action_count=env.action_space.n)
 print("Policy after {} episodes of {} for \u03B5 = {}".format(num_episodes, learning, epsilon))
 env.render_policy(policy)
-
-
-def print_q():
-    """
-    Prints q dictionary. Used for debugging
-    """
-    for key in sorted(q.keys()):
-        print(key, end=" ")
-        value = q[key]
-        for i in range(len(value)):
-            print(value[i], end=" ")
-        print()

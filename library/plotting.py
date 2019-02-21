@@ -44,8 +44,8 @@ def plot_value_function(V, title="Value Function"):
     X, Y = np.meshgrid(x_range, y_range)
 
     # Find value for all (x, y) coordinates
-    Z_noace = np.apply_along_axis(lambda _: V[(_[0], _[1], False)], 2, np.dstack([X, Y]))
-    Z_ace = np.apply_along_axis(lambda _: V[(_[0], _[1], True)], 2, np.dstack([X, Y]))
+    z_noace = np.apply_along_axis(lambda _: V[(_[0], _[1], False)], 2, np.dstack([X, Y]))
+    z_ace = np.apply_along_axis(lambda _: V[(_[0], _[1], True)], 2, np.dstack([X, Y]))
 
     def plot_surface(X, Y, Z, title):
         fig = plt.figure(figsize=(20, 10))
@@ -60,8 +60,8 @@ def plot_value_function(V, title="Value Function"):
         fig.colorbar(surf)
         plt.show()
 
-    plot_surface(X, Y, Z_noace, "{} (No Usable Ace)".format(title))
-    plot_surface(X, Y, Z_ace, "{} (Usable Ace)".format(title))
+    plot_surface(X, Y, z_noace, "{} (No Usable Ace)".format(title))
+    plot_surface(X, Y, z_ace, "{} (Usable Ace)".format(title))
 
 
 def plot_episode_stats(stats, smoothing_window=10, no_show=False):
