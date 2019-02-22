@@ -7,6 +7,22 @@ import numpy as np
 from collections import defaultdict
 
 
+def value_iteration(env, policy=None, discount_factor=1.0, theta=0.00001):
+    """
+    Performs value iteration algorithm as described in the Sutton and Barto book.
+    :param env: The OpenAI Gym environment:
+                 - env.P - transition probabilities of the environment
+                 - env.P[state][action] - a list of transition tuples
+                 - env.observation_space.n - number of states
+                 - env.action_space.n - number of actions
+    :param policy: the policy to be evaluated (if None, initialize an equidistant policy)
+    :param discount_factor: gamma the discount factor
+    :param theta: we stop iterating once the state value changes are less than theta
+    :return:
+    """
+    raise NotImplementedError
+
+
 def policy_iteration(env, policy=None, iterations=1, discount_factor=1.0, theta=0.00001):
     """
     Performs policy iteration by performing policy evaluation, then policy iteration
@@ -90,23 +106,6 @@ def policy_improvement(env, policy, state_values, discount_factor=1.0):
     :param discount_factor: gamma the discount factor
     :return: True if the policy is stable, and False otherwise.
     """
-    def get_action_values(s):
-        """
-        Helper function used to look for the best action from state s.
-        It returns the action values, and those can be subsequently
-        used to determine the best action.
-        :param s: the state for which we want to compute the action values
-        :return: the action values
-        """
-        try:
-            action_vals = np.zeros(len(env.P[s]))
-            for a in range(len(action_vals)):
-                for prob, next_state, reward, _ in env.P[s][a]:
-                    action_vals[a] += prob * (reward + discount_factor * state_values[next_state])
-            # print(action_values)
-            return action_vals
-        except KeyError:
-            return policy[s]
     # we assume that the policy is stable
     policy_stable = True
     # loop over each state
@@ -114,7 +113,7 @@ def policy_improvement(env, policy, state_values, discount_factor=1.0):
         # get the previous best action
         old_best_action = np.argmax(policy[state])
         # compute action values
-        action_values = get_action_values(state)
+        action_values = get_action_values(state, env, state_values, policy, discount_factor)
         # get the new best action
         new_best_action = np.argmax(action_values)
         if old_best_action != new_best_action:
@@ -123,3 +122,30 @@ def policy_improvement(env, policy, state_values, discount_factor=1.0):
         # update the policy of the state
         policy[state] = np.eye(env.action_space.n)[new_best_action]
     return policy_stable
+
+
+def get_action_values(s, env, state_values, policy, discount_factor=1.0):
+    """
+    Helper function used to look for the best action from state s.
+    It returns the action values, and those can be subsequently
+    used to determine the best action.
+    :param s: the state for which we want to compute the action values
+    :param env: The OpenAI Gym environment:
+                 - env.P - transition probabilities of the environment
+                 - env.P[state][action] - a list of transition tuples
+                 - env.observation_space.n - number of states
+                 - env.action_space.n - number of actions
+    :param state_values: the state values used in updating the policy
+    :param policy: the policy to be evaluated
+    :param discount_factor: gamma the discount factor
+    :return: the action values
+    """
+    try:
+        action_vals = np.zeros(len(env.P[s]))
+        for a in range(len(action_vals)):
+            for prob, next_state, reward, _ in env.P[s][a]:
+                action_vals[a] += prob * (reward + discount_factor * state_values[next_state])
+        # print(action_values)
+        return action_vals
+    except KeyError:
+        return policy[s]
