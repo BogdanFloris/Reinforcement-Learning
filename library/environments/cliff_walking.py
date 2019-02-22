@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 from gym.envs.toy_text import discrete
+from collections import defaultdict
+from prettytable import PrettyTable
 
 UP = 0
 RIGHT = 1
@@ -115,30 +117,28 @@ class CliffWalkingEnv(discrete.DiscreteEnv):
         :param policy: the policy function given
         """
         outfile = sys.stdout
-
+        grid = np.chararray(shape=(ROWS, COLUMNS), unicode=True)
         for s in range(self.nS):
             position = np.unravel_index(s, self.shape)
             if position == (ROWS - 1, COLUMNS - 1):
-                output = " G "
+                grid[position] = 'G'
             elif self._cliff[position]:
-                output = " C "
+                grid[position] = 'C'
             else:
-                action_prob = policy(s)
+                if type(policy) is defaultdict or type(policy) is dict:
+                    action_prob = policy[s]
+                else:
+                    action_prob = policy(s)
                 action = np.random.choice(np.arange(len(action_prob)), p=action_prob)
                 if action == 0:
-                    output = " \u2191 "
+                    grid[position] = '↑'
                 elif action == 1:
-                    output = " \u2192 "
+                    grid[position] = '→'
                 elif action == 2:
-                    output = " \u2193 "
+                    grid[position] = '↓'
                 else:
-                    output = " \u2190 "
-
-            if position[1] == 0:
-                output = output.lstrip()
-            if position[1] == self.shape[1] - 1:
-                output = output.rstrip()
-                output += '\n'
-
-            outfile.write(output)
-        outfile.write('\n')
+                    grid[position] = '←'
+        p = PrettyTable()
+        for row in grid:
+            p.add_row(row)
+        outfile.write(p.get_string(header=False, border=False))

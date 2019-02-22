@@ -3,6 +3,7 @@ import numpy as np
 from gym import spaces
 from gym.utils import seeding
 from gym.core import Env
+from library.dynamic_programming.dynamic_programming import policy_iteration
 
 
 MAX_CAPITAL: int = 100
@@ -22,10 +23,8 @@ class GamblersProblem(Env):
      - state 0: the agent is out of money and he loses
      - state 100: the agent has reached his goal and he wins
      The action space is based on a particular state s: a \in {0, ..., min(s, MAX_CAPITAL - s),
-     but in this environment is defined to be s \in {0, ..., MAX_CAPITAL // 2} for compatibility
-     with the OpenAI Gym environment. When an illegal state is picked (out of range),
-     the step method simply selects another legal action.
-     This makes no difference for the theoretical problem.
+     NOTE: When using the step method, a legal action for a specific state can be chosen
+     using the P dictionary like this: np.random.choice(list(P[state].keys()))
     """
     def __init__(self, heads_prob):
         # probability of the coin being heads
@@ -35,8 +34,16 @@ class GamblersProblem(Env):
         max_action = MAX_CAPITAL // 2
         # action space
         self.action_space = spaces.Discrete(max_action + 1)
+        # calculate transition probabilities
+        self.P = {}
+        for state in range(1, MAX_CAPITAL + 1):
+            self.P[state] = {a: [] for a in range(self._get_max_action(state) + 1)}
+            for action in self.P[state].keys():
+                self._calculate_transition_prob(state, action)
+        # initialize random generator
         self.np_random = None
         self.seed()
+        # initialize state and reset the environment
         self.state = None
         self.reset()
 
@@ -45,15 +52,7 @@ class GamblersProblem(Env):
         return [seed]
 
     def step(self, action: int):
-        assert 0 <= action <= MAX_CAPITAL // 2
-        max_action = np.min((self.state, MAX_CAPITAL - self.state))
-        if action > max_action:
-            # the action_space is defined to be between 0 and MAX_CAPITAL // 2 in the environment,
-            # but for each state we can only choose an action in the range 0..min(s, MAX_CAPITAL - s);
-            # to keep things compatible with all the algorithms, if the input action is illegal,
-            # meaning not in range, we can just select another random action that is legal;
-            # this makes no difference theoretically, and is convenient for backwards compatibility;
-            action = self.np_random.choice(range(0, max_action + 1))
+        assert 0 <= action <= self._get_max_action(self.state)
         if self.np_random.binomial(n=1, p=self.heads_prob):
             # heads -> the agent wins
             self.state += action
@@ -77,11 +76,24 @@ class GamblersProblem(Env):
         outfile = sys.stdout
         outfile.write('Gambler\'s capital: {}\n'.format(self.state))
 
+    def _calculate_transition_prob(self, state, action):
+        done_down = state - action == 0
+        done_up = state + action == MAX_CAPITAL
+        reward = 0
+        self.P[state][action].append((1 - self.heads_prob, state - action, reward, done_down))
+        if state + action == MAX_CAPITAL:
+            reward = 1
+        self.P[state][action].append((self.heads_prob, state + action, reward, done_up))
+
+    @staticmethod
+    def _get_max_action(state):
+        return np.min((state, MAX_CAPITAL - state))
+
 
 if __name__ == '__main__':
+    # TODO: try grid world, make docstring, remove print statements
+    from pprint import pprint
     env = GamblersProblem(0.4)
-    for _ in range(100):
-        env.render()
-        s, r, d, _ = env.step(np.random.choice(range(MAX_CAPITAL // 2 + 1)))
-        if d:
-            break
+    policy, state_values = policy_iteration(env)
+    pprint(state_values)
+    pprint(dict(policy))

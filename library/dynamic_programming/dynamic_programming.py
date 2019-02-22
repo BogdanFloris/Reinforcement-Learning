@@ -1,0 +1,125 @@
+"""
+Dynamic programming algorithms as described in Sutton and Barto Chapter 4
+ - Policy Iteration (made up of Iterative Policy Evaluation and Policy Improvement)
+ - Value Iteration
+"""
+import numpy as np
+from collections import defaultdict
+
+
+def policy_iteration(env, policy=None, iterations=1, discount_factor=1.0, theta=0.00001):
+    """
+    Performs policy iteration by performing policy evaluation, then policy iteration
+    sequentially until the policy does not change anymore.
+    :param env: The OpenAI Gym environment
+    :param policy: the policy to be evaluated (if None, initialize an equidistant policy)
+    :param iterations: number of iterations to perform if the policy isn't stable
+    :param discount_factor: gamma the discount factor
+    :param theta: we stop iterating once the state value changes are less than theta
+    :return: the policy and the state values
+    """
+    # initialize the policy if it is None
+    if policy is None:
+        policy = defaultdict(lambda: np.ones(env.action_space.n) / env.action_space.n)
+    state_values = None
+    policy_stable = False
+    i = 0
+    # iterate while the policy isn't stable
+    while policy_stable is False and i < iterations:
+        # perform policy evaluation
+        state_values = policy_evaluation(env, policy, discount_factor, theta)
+        # perform policy iteration
+        policy_stable = policy_improvement(env, policy, state_values, discount_factor)
+        # increment i
+        i += 1
+    return policy, state_values
+
+
+def policy_evaluation(env, policy=None, discount_factor=1.0, theta=0.00001):
+    """
+    Evaluates a policy and computes its state values given an environment
+    and a full description of that environment (an Markov Decision Process).
+    The environment should be a subclass from the OpenAI Gym environments.
+    :param env: The OpenAI Gym environment:
+                 - env.P - transition probabilities of the environment
+                 - env.P[state][action] - a list of transition tuples
+                 - env.observation_space.n - number of states
+                 - env.action_space.n - number of actions
+    :param policy: the policy to be evaluated (if None, initialize an equidistant policy)
+    :param discount_factor: gamma the discount factor
+    :param theta: we stop iterating once the state value changes are less than theta
+    :return: the state values computes
+    """
+    if policy is None:
+        raise ValueError('No policy to evaluate')
+    # initialize the state values
+    state_values = np.zeros(env.observation_space.n, dtype=np.float64)
+    # initialize delta check
+    delta = theta + 1.0
+    while delta > theta:
+        delta = 0
+        # loop over all the states
+        for state in range(env.observation_space.n):
+            value = state_values[state]
+            state_values[state] = 0.0
+            # loop over all the actions
+            for action, action_prob in enumerate(policy[state]):
+                # loop over all possible new states
+                try:
+                    for prob, new_state, reward, _ in env.P[state][action]:
+                        # calculate expected value using Bellman equation
+                        state_values[state] += action_prob * prob *\
+                                               (reward + discount_factor * state_values[new_state])
+                except KeyError:
+                    continue
+            delta = np.max((delta, np.abs(value - state_values[state])))
+        # print('Current delta: {}'.format(delta))
+    return state_values
+
+
+def policy_improvement(env, policy, state_values, discount_factor=1.0):
+    """
+    Improves the policy based on the state values calculated using policy evaluation.
+    :param env: The OpenAI Gym environment:
+                 - env.P - transition probabilities of the environment
+                 - env.P[state][action] - a list of transition tuples
+                 - env.observation_space.n - number of states
+                 - env.action_space.n - number of actions
+    :param policy: the policy to be evaluated
+    :param state_values: the state values used in updating the policy
+    :param discount_factor: gamma the discount factor
+    :return: True if the policy is stable, and False otherwise.
+    """
+    def get_action_values(s):
+        """
+        Helper function used to look for the best action from state s.
+        It returns the action values, and those can be subsequently
+        used to determine the best action.
+        :param s: the state for which we want to compute the action values
+        :return: the action values
+        """
+        try:
+            action_vals = np.zeros(len(env.P[s]))
+            for a in range(len(action_vals)):
+                for prob, next_state, reward, _ in env.P[s][a]:
+                    action_vals[a] += prob * (reward + discount_factor * state_values[next_state])
+            # print(action_values)
+            return action_vals
+        except KeyError:
+            return policy[s]
+    # we assume that the policy is stable
+    policy_stable = True
+    # loop over each state
+    for state in range(env.observation_space.n):
+        # get the previous best action
+        old_best_action = np.argmax(policy[state])
+        # compute action values
+        action_values = get_action_values(state)
+        # get the new best action
+        new_best_action = np.argmax(action_values)
+        if old_best_action != new_best_action:
+            # if the actions are different, then the policy isn't stable
+            policy_stable = False
+        # update the policy of the state
+        policy[state] = np.eye(env.action_space.n)[new_best_action]
+    return policy_stable
