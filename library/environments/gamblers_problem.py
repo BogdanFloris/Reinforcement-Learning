@@ -1,8 +1,11 @@
 import sys
 import numpy as np
+import seaborn as sns
 from gym import spaces
 from gym.utils import seeding
 from gym.core import Env
+from matplotlib import pyplot as plt
+from collections import defaultdict
 from library.dynamic_programming.dynamic_programming import policy_iteration
 
 
@@ -76,6 +79,21 @@ class GamblersProblem(Env):
         outfile = sys.stdout
         outfile.write('Gambler\'s capital: {}\n'.format(self.state))
 
+    def render_policy(self, policy):
+        x = range(1, MAX_CAPITAL)
+        y = np.zeros(len(x), dtype=np.int)
+        for index, state in enumerate(x):
+            if type(policy) is defaultdict or type(policy) is dict:
+                action_values = policy[state]
+            else:
+                action_values = policy(state)
+            y[index] = np.argmax(action_values)
+        sns.lineplot(x, y)
+        plt.xlabel('Final\npolicy\n(stake)')
+        plt.ylabel('Capital')
+        plt.title('Policy for the Gambler\'s Problem with p_h = {}'.format(self.heads_prob))
+        plt.show()
+
     def _calculate_transition_prob(self, state, action):
         done_down = state - action == 0
         done_up = state + action == MAX_CAPITAL
@@ -94,6 +112,6 @@ if __name__ == '__main__':
     # TODO: try grid world, make docstring, remove print statements
     from pprint import pprint
     env = GamblersProblem(0.4)
-    policy, state_values = policy_iteration(env)
-    pprint(state_values)
-    pprint(dict(policy))
+    policy, state_values = policy_iteration(env, iterations=1)
+    pprint(policy)
+    env.render_policy(policy)
