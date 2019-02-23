@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 from gym.envs.toy_text import discrete
+from collections import defaultdict
 
 UP = 0
 RIGHT = 1
@@ -148,7 +149,10 @@ class GridWorldEnv(discrete.DiscreteEnv):
             elif position == (5, 4):
                 output = " S "
             else:
-                action_prob = policy(s)
+                if type(policy) is defaultdict or type(policy) is dict:
+                    action_prob = policy[s]
+                else:
+                    action_prob = policy(s)
                 action = np.random.choice(np.arange(len(action_prob)), p=action_prob)
                 if action == 0:
                     output = " \u2191 "

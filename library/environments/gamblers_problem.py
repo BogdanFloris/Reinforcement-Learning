@@ -6,7 +6,6 @@ from gym.utils import seeding
 from gym.core import Env
 from matplotlib import pyplot as plt
 from collections import defaultdict
-from library.dynamic_programming.dynamic_programming import policy_iteration
 
 
 MAX_CAPITAL: int = 100
@@ -36,11 +35,11 @@ class GamblersProblem(Env):
         self.observation_space = spaces.Discrete(MAX_CAPITAL + 1)
         max_action = MAX_CAPITAL // 2
         # action space
-        self.action_space = spaces.Discrete(max_action + 1)
+        self.action_space = spaces.Discrete(max_action)
         # calculate transition probabilities
         self.P = {}
-        for state in range(1, MAX_CAPITAL + 1):
-            self.P[state] = {a: [] for a in range(self._get_max_action(state) + 1)}
+        for state in range(1, MAX_CAPITAL):
+            self.P[state] = {a: [] for a in range(self._get_max_action(state))}
             for action in self.P[state].keys():
                 self._calculate_transition_prob(state, action)
         # initialize random generator
@@ -55,13 +54,20 @@ class GamblersProblem(Env):
         return [seed]
 
     def step(self, action: int):
-        assert 0 <= action <= self._get_max_action(self.state)
+        max_action = self._get_max_action(self.state)
+        if action >= max_action:
+            # the action_space is defined to be between 0 and MAX_CAPITAL // 2 in the environment,
+            # but for each state we can only choose an action in the range 0..min(s, MAX_CAPITAL - s);
+            # to keep things compatible with all the algorithms, if the input action is illegal,
+            # meaning not in range, we can just select another action with the modulo operation.
+            action %= max_action
+        assert 0 <= action <= max_action
         if self.np_random.binomial(n=1, p=self.heads_prob):
             # heads -> the agent wins
-            self.state += action
+            self.state += (action + 1)
         else:
             # tails -> the agent loses
-            self.state -= action
+            self.state -= (action + 1)
         reward = 0
         done = False
         if self.state == MAX_CAPITAL:
@@ -95,23 +101,16 @@ class GamblersProblem(Env):
         plt.show()
 
     def _calculate_transition_prob(self, state, action):
-        done_down = state - action == 0
-        done_up = state + action == MAX_CAPITAL
+        new_state_down = state - (action + 1)
+        new_state_up = state + (action + 1)
+        done_down = new_state_down == 0
+        done_up = new_state_up == MAX_CAPITAL
         reward = 0
-        self.P[state][action].append((1 - self.heads_prob, state - action, reward, done_down))
-        if state + action == MAX_CAPITAL:
+        self.P[state][action].append((1 - self.heads_prob, new_state_down, reward, done_down))
+        if new_state_up == MAX_CAPITAL:
             reward = 1
-        self.P[state][action].append((self.heads_prob, state + action, reward, done_up))
+        self.P[state][action].append((self.heads_prob, new_state_up, reward, done_up))
 
     @staticmethod
     def _get_max_action(state):
         return np.min((state, MAX_CAPITAL - state))
-
-
-if __name__ == '__main__':
-    # TODO: try grid world, make docstring, remove print statements
-    from pprint import pprint
-    env = GamblersProblem(0.4)
-    policy, state_values = policy_iteration(env, iterations=1)
-    pprint(policy)
-    env.render_policy(policy)
