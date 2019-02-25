@@ -5,6 +5,7 @@ import itertools
 import numpy as np
 from collections import defaultdict
 from library import plotting
+from library.utils import make_epsilon_greedy_policy
 
 
 def q_learning(env, num_episodes: int, q=None, discount_factor=1.0,
@@ -31,7 +32,8 @@ def q_learning(env, num_episodes: int, q=None, discount_factor=1.0,
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
     # initialize the policy
-    policy = make_epsilon_greedy_policy(q, epsilon, env.action_space.n, distribute_prob)
+    policy = make_epsilon_greedy_policy(q, env.action_space.n,
+                                        epsilon=epsilon, distribute_prob=distribute_prob)
     # loop for each episode
     for episode in range(num_episodes):
         # initialize the state
@@ -81,7 +83,8 @@ def sarsa(env, num_episodes: int, q=None, discount_factor=1.0,
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
     # initialize the policy
-    policy = make_epsilon_greedy_policy(q, epsilon, env.action_space.n, distribute_prob)
+    policy = make_epsilon_greedy_policy(q, env.action_space.n,
+                                        epsilon=epsilon, distribute_prob=distribute_prob)
     # loop for each episode
     for episode in range(num_episodes):
         # initialize state
@@ -109,31 +112,3 @@ def sarsa(env, num_episodes: int, q=None, discount_factor=1.0,
             state = next_state
             action = next_action
     return q, stats
-
-
-def make_epsilon_greedy_policy(q: dict, epsilon: float, action_count: int, distribute_prob=True):
-    """
-    This function creates an epsilon greedy policy based on the given Q.
-    :param q: A dictionary that maps from a state to the action values
-              for all possible nA actions (represented as an array)
-    :param epsilon: Probability to select a random action
-    :param action_count: Number of actions
-    :param distribute_prob: Whether or not to distribute the probability between best actions
-                            or just choose the first best action an assign it all the probability mass.
-    :return: A function that takes as argument an observation and returns
-             the probabilities of each action.
-    """
-    if q is None:
-        raise ValueError('Q is None')
-
-    def policy_func(observation):
-        actions = np.ones(action_count, dtype=float) * epsilon / action_count
-        if distribute_prob:
-            best_actions = np.argwhere(q[observation] == np.max(q[observation])).flatten()
-            for i in best_actions:
-                actions[i] += (1.0 - epsilon) / len(best_actions)
-        else:
-            best_action = np.argmax(q[observation])
-            actions[best_action] += (1.0 - epsilon)
-        return actions
-    return policy_func

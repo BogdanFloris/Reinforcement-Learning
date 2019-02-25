@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from collections import namedtuple
 from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 EpisodeStats = namedtuple("Stats", ["episode_lengths", "episode_rewards"])
 
@@ -30,38 +31,42 @@ def plot_cost_to_go_mountain_car(env, estimator, num_tiles=20):
     plt.show()
 
 
-def plot_value_function(V, title="Value Function"):
+def plot_value_function_blackjack(state_values, title):
     """
-    Plots the value function as a surface plot.
+    Plots the value function of a Blackjack solution as a surface plot.
+    :param state_values: state values of the Blackjack game.
+    :param title: title of the plot
     """
-    min_x = min(k[0] for k in V.keys())
-    max_x = max(k[0] for k in V.keys())
-    min_y = min(k[1] for k in V.keys())
-    max_y = max(k[1] for k in V.keys())
+    x_states = [s[0] for s in state_values.keys()]
+    y_states = [s[1] for s in state_values.keys()]
+    min_x = np.min(x_states)
+    max_x = np.max(x_states)
+    min_y = np.min(y_states)
+    max_y = np.max(y_states)
 
     x_range = np.arange(min_x, max_x + 1)
     y_range = np.arange(min_y, max_y + 1)
-    X, Y = np.meshgrid(x_range, y_range)
+    x_grid, y_grid = np.meshgrid(x_range, y_range)
 
     # Find value for all (x, y) coordinates
-    z_noace = np.apply_along_axis(lambda _: V[(_[0], _[1], False)], 2, np.dstack([X, Y]))
-    z_ace = np.apply_along_axis(lambda _: V[(_[0], _[1], True)], 2, np.dstack([X, Y]))
+    z_no_ace = np.apply_along_axis(lambda _: state_values[(_[0], _[1], False)],
+                                   2, np.dstack([x_grid, y_grid]))
+    z_ace = np.apply_along_axis(lambda _: state_values[(_[0], _[1], True)],
+                                2, np.dstack([x_grid, y_grid]))
 
-    def plot_surface(X, Y, Z, title):
-        fig = plt.figure(figsize=(20, 10))
-        ax = fig.add_subplot(111, projection='3d')
-        surf = ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
-                               cmap=matplotlib.cm.coolwarm, vmin=-1.0, vmax=1.0)
+    def plot_surface(x, y, z, plot_title):
+        fig = plt.figure()
+        ax = Axes3D(fig)
+        ax.plot_surface(x, y, z, rstride=1, cstride=1,
+                        cmap='viridis')
         ax.set_xlabel('Player Sum')
         ax.set_ylabel('Dealer Showing')
         ax.set_zlabel('Value')
-        ax.set_title(title)
-        ax.view_init(ax.elev, -120)
-        fig.colorbar(surf)
+        ax.set_title(plot_title)
         plt.show()
 
-    plot_surface(X, Y, z_noace, "{} (No Usable Ace)".format(title))
-    plot_surface(X, Y, z_ace, "{} (Usable Ace)".format(title))
+    plot_surface(x_grid, y_grid, z_no_ace, "{} (No Usable Ace)".format(title))
+    plot_surface(x_grid, y_grid, z_ace, "{} (Usable Ace)".format(title))
 
 
 def plot_episode_stats(stats, smoothing_window=10, no_show=False):
