@@ -2,6 +2,7 @@
 Utilities module
 """
 import numpy as np
+from collections import defaultdict
 
 
 def make_random_policy(action_count):
@@ -56,3 +57,15 @@ def print_q(q):
         for i in range(len(value)):
             print(value[i], end=" ")
         print()
+
+
+def create_state_value_function(q):
+    """
+    Creates a state value function from a q function.
+    :param q: the q function
+    :return: the state value function
+    """
+    state_values = defaultdict(float)
+    for state, action_values in q.items():
+        state_values[state] = np.max(action_values)
+    return state_values

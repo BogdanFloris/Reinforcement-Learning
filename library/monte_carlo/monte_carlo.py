@@ -8,6 +8,7 @@ Implemented algorithms:
 """
 import numpy as np
 from collections import defaultdict
+from tqdm import tqdm
 from library.utils import make_random_policy, make_epsilon_greedy_policy
 
 
@@ -31,9 +32,7 @@ def mc_control_weighted_importance_sampling(env, no_episodes, behavior_policy, d
     # create the target policy that we wish to learn
     target_policy = make_epsilon_greedy_policy(q, env.action_space.n, epsilon=0.0, distribute_prob=False)
     # start looping over episodes
-    for i_episode in range(no_episodes):
-        if i_episode % 1000 == 0:
-            print('Episode {}'.format(i_episode))
+    for _ in tqdm(range(no_episodes)):
         # generate the episode
         episode = generate_episode(env, behavior_policy)
         # initialize g: sum of discounted returns
@@ -79,9 +78,7 @@ def mc_control_eps_greedy(env, no_episodes, epsilon=0.1, discount_factor=1.0):
     # initialize the epsilon greedy policy
     policy = make_epsilon_greedy_policy(q, env.action_space.n, epsilon)
     # start looping over episodes
-    for i_episode in range(no_episodes):
-        if i_episode % 1000 == 0:
-            print('Episode {}'.format(i_episode))
+    for _ in tqdm(range(no_episodes)):
         # generate the episode
         episode = generate_episode(env, policy)
         # set of state action tuples that were seen in the episode
@@ -124,9 +121,7 @@ def mc_prediction(env, no_episodes, policy=None, discount_factor=1.0):
     # initialize the state values
     state_values = defaultdict(float)
     # start looping over episodes
-    for i_episode in range(no_episodes):
-        if i_episode % 1000 == 0:
-            print('Episode {}'.format(i_episode))
+    for _ in tqdm(range(no_episodes)):
         # generate the episode
         episode = generate_episode(env, policy)
         # set of states that were seen in the episode
