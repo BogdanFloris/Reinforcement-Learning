@@ -3,12 +3,60 @@ Monte Carlo methods that learn directly from experience and do not assume
 complete knowledge of the environment as described in Chapter 5 of Sutton and Barto.
 Implemented algorithms:
  - MC Prediction
- -
- -
+ - On-policy MC Control with epsilon greedy policies
+ - Off-policy MC Control with weighted importance sampling
 """
 import numpy as np
 from collections import defaultdict
 from library.utils import make_random_policy, make_epsilon_greedy_policy
+
+
+def mc_control_weighted_importance_sampling(env, no_episodes, behavior_policy, discount_factor=1.0):
+    """
+    Off-policy Monte Carlo Control with weighted importance sampling,
+    as described in section 5.7 of Sutton and Barto.
+    Finds the optimal policy for the given environment using episodes
+    generated from the given behavior policy, and returns the q function
+    and the optimal policy.
+    :param env: the OpenAI Gym environment
+    :param no_episodes: how many episodes we sample
+    :param behavior_policy: the policy used to generate episodes
+    :param discount_factor: the gamma discount factor
+    :return:the q function and the optimal policy
+    """
+    # initialize the q function
+    q = defaultdict(lambda: np.zeros(env.action_space.n))
+    # initialize the cumulative sum of the weights
+    c = defaultdict(lambda: np.zeros(env.action_space.n))
+    # create the target policy that we wish to learn
+    target_policy = make_epsilon_greedy_policy(q, env.action_space.n, epsilon=0.0, distribute_prob=False)
+    # start looping over episodes
+    for i_episode in range(no_episodes):
+        if i_episode % 1000 == 0:
+            print('Episode {}'.format(i_episode))
+        # generate the episode
+        episode = generate_episode(env, behavior_policy)
+        # initialize g: sum of discounted returns
+        g = 0.0
+        # initialize w: importance sampling ration
+        w = 1.0
+        # loop over time steps in episode backwards
+        for t in range(len(episode) - 1, -1, -1):
+            # get the state, action and reward for this time step
+            state, action, reward = episode[t]
+            # update g
+            g = discount_factor * g + reward
+            # update the cumulative sum of the weights
+            c[state][action] += w
+            # update the q function using the incremental formula
+            # this also improves the policy because the policy has a reference to q
+            q[state][action] += (w / c[state][action] * (g - q[state][action]))
+            # if the actions taken by the two policies are different, then break
+            if action != np.argmax(target_policy(state)):
+                break
+            # update w
+            w *= (1.0 / behavior_policy(state)[action])
+    return q, target_policy
 
 
 def mc_control_eps_greedy(env, no_episodes, epsilon=0.1, discount_factor=1.0):
@@ -21,7 +69,7 @@ def mc_control_eps_greedy(env, no_episodes, epsilon=0.1, discount_factor=1.0):
     :param no_episodes: how many episodes we sample
     :param epsilon: epsilon value for the greedy policies
     :param discount_factor: the gamma discount factor
-    :return: the optimal epsilon greedy policy and the q function
+    :return: the q function and the optimal epsilon greedy policy
     """
     # initialize returns dictionaries
     sum_returns = defaultdict(float)
@@ -31,9 +79,9 @@ def mc_control_eps_greedy(env, no_episodes, epsilon=0.1, discount_factor=1.0):
     # initialize the epsilon greedy policy
     policy = make_epsilon_greedy_policy(q, env.action_space.n, epsilon)
     # start looping over episodes
-    for episode in range(no_episodes):
-        if episode % 1000 == 0:
-            print('Episode {}'.format(episode))
+    for i_episode in range(no_episodes):
+        if i_episode % 1000 == 0:
+            print('Episode {}'.format(i_episode))
         # generate the episode
         episode = generate_episode(env, policy)
         # set of state action tuples that were seen in the episode
@@ -76,11 +124,11 @@ def mc_prediction(env, no_episodes, policy=None, discount_factor=1.0):
     # initialize the state values
     state_values = defaultdict(float)
     # start looping over episodes
-    for episode in range(no_episodes):
-        if episode % 1000 == 0:
-            print('Episode {}'.format(episode))
+    for i_episode in range(no_episodes):
+        if i_episode % 1000 == 0:
+            print('Episode {}'.format(i_episode))
         # generate the episode
-        episode = generate_episode(env, policy, )
+        episode = generate_episode(env, policy)
         # set of states that were seen in the episode
         states_in_ep = set([obs[0] for obs in episode])
         for state in states_in_ep:
