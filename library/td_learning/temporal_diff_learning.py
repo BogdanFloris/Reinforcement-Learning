@@ -6,6 +6,7 @@ import numpy as np
 from collections import defaultdict
 from library import plotting
 from library.utils import make_epsilon_greedy_policy
+from tqdm import tqdm
 
 
 def q_learning(env, num_episodes: int, q=None, discount_factor=1.0,
@@ -35,7 +36,7 @@ def q_learning(env, num_episodes: int, q=None, discount_factor=1.0,
     policy = make_epsilon_greedy_policy(q, env.action_space.n,
                                         epsilon=epsilon, distribute_prob=distribute_prob)
     # loop for each episode
-    for episode in range(num_episodes):
+    for episode in tqdm(range(num_episodes)):
         # initialize the state
         state = env.reset()
         # loop for each step in the episode
@@ -86,7 +87,7 @@ def sarsa(env, num_episodes: int, q=None, discount_factor=1.0,
     policy = make_epsilon_greedy_policy(q, env.action_space.n,
                                         epsilon=epsilon, distribute_prob=distribute_prob)
     # loop for each episode
-    for episode in range(num_episodes):
+    for episode in tqdm(range(num_episodes)):
         # initialize state
         state = env.reset()
         # choose action from state based on the policy

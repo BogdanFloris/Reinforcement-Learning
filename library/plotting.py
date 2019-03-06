@@ -1,6 +1,6 @@
 """
 Module used for plotting
-Code from:
+Code inspired from:
 https://github.com/dennybritz/reinforcement-learning/blob/master/lib/plotting.py
 """
 import matplotlib
@@ -70,16 +70,19 @@ def plot_value_function_blackjack(state_values, title):
 
 
 def plot_episode_stats(stats, smoothing_window=10, no_show=False):
+    """
+    Plots the episode statistics
+    :param stats: the episode statistics
+    :param smoothing_window: smoothing window
+    :param no_show: shows the plots if false, doesn't show them otherwise
+    :return: the three figures
+    """
     # Plot the episode length over time
     fig1 = plt.figure(figsize=(10, 5))
     plt.plot(stats.episode_lengths)
     plt.xlabel("Episode")
     plt.ylabel("Episode Length")
     plt.title("Episode Length over Time")
-    if no_show:
-        plt.close()
-    else:
-        plt.show()
 
     # Plot the episode reward over time
     fig2 = plt.figure(figsize=(10, 5))
