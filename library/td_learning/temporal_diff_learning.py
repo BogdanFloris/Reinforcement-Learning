@@ -76,12 +76,12 @@ def q_learning(env,
             stats.episode_rewards[episode] += reward
             stats.episode_lengths[episode] = t
             if discrete:
-                # q learning update for Q function
+                # q learning update for Q function case
                 best_next_action = np.argmax(q[next_state])
                 q[state][action] += alpha * (reward + discount_factor *
                                              q[next_state][best_next_action] - q[state][action])
             else:
-                # q learning update for the estimator
+                # q learning update for the estimator case
                 q_values = estimator.predict(next_state)
                 td_update = reward + discount_factor * np.max(q_values)
                 estimator.update(state, action, td_update)

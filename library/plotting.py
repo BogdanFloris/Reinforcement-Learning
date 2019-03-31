@@ -23,7 +23,7 @@ def plot_cost_to_go_mountain_car(env, estimator, num_tiles=20):
     fig = plt.figure(figsize=(10, 5))
     ax = fig.add_subplot(111, projection='3d')
     surf = ax.plot_surface(x_grid, y_grid, z_grid, rstride=1, cstride=1,
-                           cmap='viridis', vmin=-1.0, vmax=1.0)
+                           cmap='viridis')
     ax.set_xlabel('Position')
     ax.set_ylabel('Velocity')
     ax.set_zlabel('Value')
