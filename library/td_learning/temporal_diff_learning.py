@@ -10,14 +10,23 @@ from library.estimators.estimators import Estimator
 from tqdm import tqdm
 
 
-def q_learning(env, num_episodes: int, q=None,
+def q_learning(env,
+               num_episodes: int,
+               q=None,
                estimator: Estimator = None,
-               discount_factor=1.0, alpha=0.5,
-               epsilon=0.1, epsilon_decay=1.0,
+               discount_factor=1.0,
+               alpha=0.5,
+               epsilon=0.1,
+               epsilon_decay=1.0,
                distribute_prob=True):
     """
     Q-Learning (off-policy control) algorithm implementation as described on page 131
     of the book Reinforcement Learning: An Introduction by Sutton and Barto.
+    Important: This algorithm can be used with both a discrete state space using
+    a lookup table Q[state][action] and also with a function approximator.
+    To use it with function approximation, an estimator parameter must be passed.
+    A Q function table can still be None. If both Q and estimator are None,
+    then the algorithm will initialize the Q table and will proceed with the discrete case.
     :param env: The OpenAI Env used
     :param num_episodes: Number of episodes to run the algorithm for
     :param q: Q action state values to start from
