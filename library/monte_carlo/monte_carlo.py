@@ -30,7 +30,8 @@ def mc_control_weighted_importance_sampling(env, no_episodes, behavior_policy, d
     # initialize the cumulative sum of the weights
     c = defaultdict(lambda: np.zeros(env.action_space.n))
     # create the target policy that we wish to learn
-    target_policy = make_epsilon_greedy_policy(q, env.action_space.n, epsilon=0.0, distribute_prob=False)
+    target_policy = make_epsilon_greedy_policy(env.action_space.n, epsilon=0.0,
+                                               q=q, distribute_prob=False)
     # start looping over episodes
     for _ in tqdm(range(no_episodes)):
         # generate the episode
@@ -76,7 +77,7 @@ def mc_control_eps_greedy(env, no_episodes, epsilon=0.1, discount_factor=1.0):
     # initialize the q function
     q = defaultdict(lambda: np.zeros(env.action_space.n))
     # initialize the epsilon greedy policy
-    policy = make_epsilon_greedy_policy(q, env.action_space.n, epsilon)
+    policy = make_epsilon_greedy_policy(env.action_space.n, epsilon, q=q)
     # start looping over episodes
     for _ in tqdm(range(no_episodes)):
         # generate the episode
@@ -97,7 +98,7 @@ def mc_control_eps_greedy(env, no_episodes, epsilon=0.1, discount_factor=1.0):
             # update q function
             q[state][action] = sum_returns[pair] / count_returns[pair]
         # update policy after the episode
-        policy = make_epsilon_greedy_policy(q, env.action_space.n, epsilon)
+        policy = make_epsilon_greedy_policy(env.action_space.n, epsilon, q=q)
     return q, policy
 
 

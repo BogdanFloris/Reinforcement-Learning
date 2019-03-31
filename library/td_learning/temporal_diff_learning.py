@@ -33,8 +33,8 @@ def q_learning(env, num_episodes: int, q=None, discount_factor=1.0,
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
     # initialize the policy
-    policy = make_epsilon_greedy_policy(q, env.action_space.n,
-                                        epsilon=epsilon, distribute_prob=distribute_prob)
+    policy = make_epsilon_greedy_policy(env.action_space.n, epsilon=epsilon,
+                                        q=q, distribute_prob=distribute_prob)
     # loop for each episode
     for episode in tqdm(range(num_episodes)):
         # initialize the state
@@ -84,8 +84,8 @@ def sarsa(env, num_episodes: int, q=None, discount_factor=1.0,
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
     # initialize the policy
-    policy = make_epsilon_greedy_policy(q, env.action_space.n,
-                                        epsilon=epsilon, distribute_prob=distribute_prob)
+    policy = make_epsilon_greedy_policy(env.action_space.n, epsilon=epsilon,
+                                        q=q, distribute_prob=distribute_prob)
     # loop for each episode
     for episode in tqdm(range(num_episodes)):
         # initialize state
