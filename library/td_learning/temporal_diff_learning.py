@@ -90,7 +90,7 @@ def q_learning(env,
                 break
             # otherwise update state
             state = next_state
-    return q, stats if discrete else estimator, stats
+    return (q, stats) if discrete else (estimator, stats)
 
 
 def sarsa(env, num_episodes: int, q=None, discount_factor=1.0,
