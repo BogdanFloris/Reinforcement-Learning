@@ -25,10 +25,10 @@ class ReplayMemory:
         self.buffer_size = buffer_size
         self.m = m
         # initialize buffers
-        self.states = np.zeros(shape=(buffer_size, height, width, m), dtype=np.float)
+        self.states = np.zeros(shape=(buffer_size, m, height, width), dtype=np.float)
         self.actions = np.zeros(shape=buffer_size, dtype=np.int)
         self.rewards = np.zeros(shape=buffer_size, dtype=np.float)
-        self.next_states = np.zeros(shape=(buffer_size, height, width, m), dtype=np.float)
+        self.next_states = np.zeros(shape=(buffer_size, m, height, width), dtype=np.float)
         self.done = np.zeros(shape=buffer_size, dtype=np.bool)
         # number of elements in the buffer
         self.size = 0
@@ -70,10 +70,10 @@ class ReplayMemory:
         :return: the samples
         """
         # initialize the returns
-        states = np.zeros((batch_size, self.height, self.width, self.m), dtype=np.float)
+        states = np.zeros((batch_size, self.m, self.height, self.width), dtype=np.float)
         actions = np.zeros(batch_size, dtype=np.int)
         rewards = np.zeros(batch_size, dtype=np.float)
-        next_states = np.zeros((batch_size, self.height, self.width, self.m), dtype=np.float)
+        next_states = np.zeros((batch_size, self.m, self.height, self.width), dtype=np.float)
         done = np.zeros(batch_size, dtype=np.bool)
         # counter for batches
         batch_index = 0
