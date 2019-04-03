@@ -6,6 +6,7 @@ import os
 import tensorflow as tf
 import numpy as np
 from collections import deque
+from tqdm import tqdm
 from library.estimators.q_network import QNetwork
 from library.dqn.replay_memory import ReplayMemory
 from library.utils import make_epsilon_greedy_policy
@@ -54,6 +55,8 @@ class DQNAgent:
         :param eps_decay_steps: how many epsilons between initial and final
         """
         # initialize parameters
+        self.env = env
+        self.num_episodes = num_episodes
         self.rng = np.random.RandomState(seed)
         self.input_shape = input_shape
         self.buffer_size = buffer_size
@@ -76,19 +79,19 @@ class DQNAgent:
         if not os.path.exists(self.video_dir):
             os.makedirs(self.video_dir)
         # initialize checkpoint
-        ckpt = tf.train.Checkpoint(step=tf.Variable(1),
+        self.ckpt = tf.train.Checkpoint(step=tf.Variable(1),
                                    optimizer=self.optimizer,
                                    net=self.q_network)
-        manager = tf.train.CheckpointManager(ckpt, self.checkpoint_dir, max_to_keep=3)
-        ckpt.restore(manager.latest_checkpoint)
-        if manager.latest_checkpoint:
-            print('Restored from {}'.format(manager.latest_checkpoint))
+        self.manager = tf.train.CheckpointManager(self.ckpt, self.checkpoint_dir, max_to_keep=3)
+        self.ckpt.restore(self.manager.latest_checkpoint)
+        if self.manager.latest_checkpoint:
+            print('Restored from {}'.format(self.manager.latest_checkpoint))
         else:
             print('Initializing Q network from scratch')
         # initialize episode statistics
         self.stats = EpisodeStats(
-            episode_lengths=np.zeros(num_episodes),
-            episode_rewards=np.zeros(num_episodes)
+            episode_lengths=np.zeros(self.num_episodes),
+            episode_rewards=np.zeros(self.num_episodes)
         )
         # initialize networks
         self.q_network = QNetwork(input_shape=input_shape,
@@ -116,12 +119,57 @@ class DQNAgent:
                                                  estimator=self.q_network)
         self.populate_init_replay_memory()
 
+    def q_learning(self):
+        """
+        Perform the Q-learning algorithm
+        """
+        for i_episode in tqdm(range(self.num_episodes)):
+            self.ckpt.step.assign_add(1)
+
     def populate_init_replay_memory(self):
         """
         Called at the beginning of learning in order to populate
         the replay memory with an initial self.init_buffer experiences.
         """
-        pass
+        print('Populating memory with initial experience...')
+        # get 4 initial frames in the queue
+        frame = process_atari_frame(self.env.reset())
+        for _ in range(self.m):
+            self.last_m_frames.append(frame)
+        state = self.queue_to_state()
+        # loop until we have populated the memory with init_buffer samples
+        for _ in range(self.init_buffer):
+            # take a step using the action given by the policy
+            action_probs = self.policy(state, self.get_epsilon())
+            action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+            frame, reward, done, _ = self.env.step(action)
+            frame = process_atari_frame(frame)
+            self.last_m_frames.append(frame)
+            next_state = self.queue_to_state()
+            # add the sample to memory
+            self.memory.add_sample(state, action, reward, next_state, done)
+            # reset environment if done
+            if done:
+                frame = process_atari_frame(self.env.reset())
+                for _ in range(self.m):
+                    self.last_m_frames.append(frame)
+                state = self.queue_to_state()
+            # else continue
+            else:
+                state = next_state
+
+    def queue_to_state(self):
+        """
+        :return: state from the last_m_frames queue
+        """
+        return np.transpose(np.array(self.last_m_frames))
+
+    def get_epsilon(self):
+        """
+        :return: epsilon value to be used
+        """
+        return self.epsilons[min(int(self.ckpt.step),
+                                 self.eps_decay_steps - 1)]
 
     def update_target_network(self):
         """
