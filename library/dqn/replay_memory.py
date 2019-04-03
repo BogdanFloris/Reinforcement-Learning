@@ -39,21 +39,21 @@ class ReplayMemory:
     def __len__(self):
         return self.size
 
-    def add_sample(self, state, action, reward, next_state, terminal):
+    def add_sample(self, state, action, reward, next_state, done):
         """
         Adds a sample to the memory.
         :param state: the state sample
         :param action: the action sample
         :param reward: the reward sample
         :param next_state: the next state sample
-        :param terminal: is the sample done or not
+        :param done: is the sample done or not
         """
         # put the elements in the buffer
         self.states[self.top] = state
         self.actions[self.top] = action
         self.rewards[self.top] = reward
         self.next_states[self.top] = next_state
-        self.done[self.top] = terminal
+        self.done[self.top] = done
         # update the pointers in the buffer
         if self.size == self.buffer_size:
             # the buffer is full so wrap around

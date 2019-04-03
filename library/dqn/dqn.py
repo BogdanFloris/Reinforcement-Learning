@@ -1,9 +1,6 @@
 """
 DQN implementation that replicates the results from the seminal paper
 Human-level control through deep reinforcement learning.
-TODO: 1. The input to the Q Network is the last M processed frames
-TODO: 2. Use deque to store the last M processed frames
-TODO: 3. Divide by 255 somewhere
 """
 import os
 import tensorflow as tf
