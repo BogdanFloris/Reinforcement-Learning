@@ -3,7 +3,6 @@ Utilities module
 """
 import numpy as np
 from collections import defaultdict
-from library.estimators.estimators import Estimator
 
 
 def make_random_policy(action_count):
