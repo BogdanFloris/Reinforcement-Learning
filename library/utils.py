@@ -36,8 +36,8 @@ def make_epsilon_greedy_policy(action_count: int, epsilon=0.0, q: dict = None,
     if q is None and estimator is None:
         raise ValueError('Cannot make policy: both q and estimator are none')
 
-    def policy_func(observation):
-        actions = np.ones(action_count, dtype=float) * epsilon / action_count
+    def policy_func(observation, eps=epsilon):
+        actions = np.ones(action_count, dtype=float) * eps / action_count
         if q is not None:
             q_values = q[observation]
         else:
