@@ -126,7 +126,7 @@ class DQNAgent:
 
     def dqn(self):
         """
-        Perform the Q-learning algorithm
+        Perform the Deep Q-Learning algorithm
         """
         print('Starting training...')
         # loop over episodes
