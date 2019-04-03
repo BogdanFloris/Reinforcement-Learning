@@ -75,20 +75,13 @@ class DQNAgent:
             experiment_dir = os.path.abspath('./experiments/{}'.format(env.spec.id))
         self.checkpoint_dir = os.path.join(experiment_dir, 'checkpoints')
         self.video_dir = os.path.join(experiment_dir, 'video')
+        self.weights_dir = os.path.join(experiment_dir, 'weights')
         if not os.path.exists(self.checkpoint_dir):
             os.makedirs(self.checkpoint_dir)
         if not os.path.exists(self.video_dir):
             os.makedirs(self.video_dir)
-        # initialize checkpoint
-        self.ckpt = tf.train.Checkpoint(step=tf.Variable(1),
-                                        optimizer=self.optimizer,
-                                        net=self.q_network)
-        self.manager = tf.train.CheckpointManager(self.ckpt, self.checkpoint_dir, max_to_keep=3)
-        self.ckpt.restore(self.manager.latest_checkpoint)
-        if self.manager.latest_checkpoint:
-            print('Restored from {}'.format(self.manager.latest_checkpoint))
-        else:
-            print('Initializing Q network from scratch')
+        if not os.path.exists(self.weights_dir):
+            os.makedirs(self.weights_dir)
         # initialize episode statistics
         self.stats = EpisodeStats(
             episode_lengths=np.zeros(self.num_episodes),
@@ -102,7 +95,17 @@ class DQNAgent:
                                          no_actions=env.action_space.n,
                                          rng=self.rng)
         # initialize optimizer
-        self.optimizer = tf.keras.optimizers.RMSProp(learning_rate=learning_rate)
+        self.optimizer = tf.keras.optimizers.RMSprop(learning_rate=self.learning_rate)
+        # initialize checkpoint
+        self.ckpt = tf.train.Checkpoint(step=tf.Variable(1),
+                                        optimizer=self.optimizer,
+                                        net=self.q_network)
+        self.manager = tf.train.CheckpointManager(self.ckpt, self.checkpoint_dir, max_to_keep=3)
+        self.ckpt.restore(self.manager.latest_checkpoint)
+        if self.manager.latest_checkpoint:
+            print('Restored from {}'.format(self.manager.latest_checkpoint))
+        else:
+            print('Initializing Q network from scratch')
         # initialize replay memory
         self.memory = ReplayMemory(self.input_shape[0],
                                    self.input_shape[1],
@@ -117,13 +120,15 @@ class DQNAgent:
         # if epsilon is not given, it's going to default to initial_epsilon
         self.policy = make_epsilon_greedy_policy(env.action_space.n,
                                                  epsilon=self.initial_epsilon,
-                                                 estimator=self.q_network)
+                                                 estimator=self.q_network,
+                                                 distribute_prob=False)
         self.populate_init_replay_memory()
 
     def dqn(self):
         """
         Perform the Q-learning algorithm
         """
+        print('Starting training...')
         # loop over episodes
         for i_episode in tqdm(range(self.num_episodes)):
             # get 4 initial frames in the queue
@@ -138,7 +143,7 @@ class DQNAgent:
                 if int(self.ckpt.step) % self.update_frequency:
                     self.update_target_network()
                 # take a step using the action given by the policy
-                action_probs = self.policy(state, self.get_epsilon())
+                action_probs = self.policy(np.expand_dims(state, 0), self.get_epsilon())
                 action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
                 frame, reward, done, _ = self.env.step(action)
                 frame = process_atari_frame(frame)
@@ -167,9 +172,15 @@ class DQNAgent:
                 state = next_state
                 # update checkpoint step
                 self.ckpt.step.assign_add(1)
-            # print loss
+                print(loss)
+            # print loss and save
             if i_episode % 10 == 0:
+                self.manager.save()
                 print("loss {:1.2f} at episode {}".format(loss.numpy(), i_episode))
+        print('Finished training')
+        print('Saving weights...')
+        self.q_network.save_weights(self.weights_dir)
+        print('Done')
 
     def populate_init_replay_memory(self):
         """
@@ -183,9 +194,9 @@ class DQNAgent:
             self.last_m_frames.append(frame)
         state = self.queue_to_state()
         # loop until we have populated the memory with init_buffer samples
-        for _ in range(self.init_buffer):
+        for _ in tqdm(range(self.init_buffer)):
             # take a step using the action given by the policy
-            action_probs = self.policy(state, self.get_epsilon())
+            action_probs = self.policy(np.expand_dims(state, 0), self.get_epsilon())
             action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
             frame, reward, done, _ = self.env.step(action)
             frame = process_atari_frame(frame)

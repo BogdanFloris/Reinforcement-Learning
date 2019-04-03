@@ -45,10 +45,10 @@ def make_epsilon_greedy_policy(action_count: int, epsilon=0.0, q: dict = None,
         if distribute_prob:
             best_actions = np.argwhere(q_values == np.max(q_values)).flatten()
             for i in best_actions:
-                actions[i] += (1.0 - epsilon) / len(best_actions)
+                actions[i] += (1.0 - eps) / len(best_actions)
         else:
             best_action = np.argmax(q_values)
-            actions[best_action] += (1.0 - epsilon)
+            actions[best_action] += (1.0 - eps)
         return actions
 
     return policy_func
