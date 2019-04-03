@@ -21,7 +21,7 @@ def make_random_policy(action_count):
 
 
 def make_epsilon_greedy_policy(action_count: int, epsilon=0.0, q: dict = None,
-                               estimator: Estimator = None, distribute_prob=True):
+                               estimator=None, distribute_prob=True):
     """
     This function creates an epsilon greedy policy based on the given Q.
     :param action_count: Number of actions
