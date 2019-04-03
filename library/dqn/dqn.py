@@ -11,6 +11,7 @@ import numpy as np
 from collections import deque
 from library.estimators.q_network import QNetwork
 from library.dqn.replay_memory import ReplayMemory
+from library.utils import make_epsilon_greedy_policy
 from library.plotting import EpisodeStats
 
 
@@ -31,6 +32,30 @@ class DQNAgent:
                  initial_epsilon=1.0,
                  final_epsilon=0.1,
                  eps_decay_steps=500000):
+        """
+        Performs the initialization of the DQN Agent:
+         - copies the given parameters
+         - initializes the directories for the checkpoints and the video
+         - initializes the checkpoint and restores if necessary
+         - initializes the networks: Q and target and their optimizer
+         - initializes the replay memory and populates it
+        :param env: the environment on which the agent performs on
+        :param num_episodes: the number of episodes to train the agent for
+        :param seed: the random generator seed
+        :param experiment_dir: where to save the experiments;
+            can be left None and it will be initialized automatically
+        :param input_shape: the size of the input that is fed to the Q network
+        :param buffer_size: size of the replay memory buffer
+        :param init_buffer: how many samples should initially be in the replay memory
+        :param batch_size: how many samples to use for a training session
+        :param m: number of frames in the input
+        :param update_frequency: how often to update the target network
+        :param learning_rate: the learning rate for the optimizer
+        :param discount_factor: discount factor used to calculate the targets
+        :param initial_epsilon: initial epsilon value
+        :param final_epsilon: final epsilon value
+        :param eps_decay_steps: how many epsilons between initial and final
+        """
         # initialize parameters
         self.rng = np.random.RandomState(seed)
         self.input_shape = input_shape
@@ -47,9 +72,22 @@ class DQNAgent:
         # initialize the directories
         if experiment_dir is None:
             experiment_dir = os.path.abspath('./experiments/{}'.format(env.spec.id))
-        checkpoint_dir = os.path.join(experiment_dir, 'checkpoints')
-        self.checkpoint_path = os.path.join(checkpoint_dir, 'model')
+        self.checkpoint_dir = os.path.join(experiment_dir, 'checkpoints')
         self.video_dir = os.path.join(experiment_dir, 'video')
+        if not os.path.exists(self.checkpoint_dir):
+            os.makedirs(self.checkpoint_dir)
+        if not os.path.exists(self.video_dir):
+            os.makedirs(self.video_dir)
+        # initialize checkpoint
+        ckpt = tf.train.Checkpoint(step=tf.Variable(1),
+                                   optimizer=self.optimizer,
+                                   net=self.q_network)
+        manager = tf.train.CheckpointManager(ckpt, self.checkpoint_dir, max_to_keep=3)
+        ckpt.restore(manager.latest_checkpoint)
+        if manager.latest_checkpoint:
+            print('Restored from {}'.format(manager.latest_checkpoint))
+        else:
+            print('Initializing Q network from scratch')
         # initialize episode statistics
         self.stats = EpisodeStats(
             episode_lengths=np.zeros(num_episodes),
@@ -69,6 +107,17 @@ class DQNAgent:
                                    self.input_shape[1],
                                    rng=self.rng,
                                    buffer_size=buffer_size)
+        # initialize last m frames queue
+        self.last_m_frames = deque(maxlen=self.m)
+        # make a list of all the epsilons used
+        self.epsilons = np.linspace(initial_epsilon, final_epsilon, eps_decay_steps)
+        # initialize the policy
+        # !Note: always use it like this: policy(state, epsilon)
+        # if epsilon is not given, it's going to default to initial_epsilon
+        self.policy = make_epsilon_greedy_policy(env.action_space.n,
+                                                 epsilon=self.initial_epsilon,
+                                                 estimator=self.q_network)
+        self.populate_init_replay_memory()
 
     def populate_init_replay_memory(self):
         """
