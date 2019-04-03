@@ -66,12 +66,12 @@ class QNetwork(tf.keras.Model):
         :param actions: of shape (batch_size)
         :param targets: of shape (batch_size)
         :param optimizer: the optimizer used to train
-        :return:
+        :return: the loss
         """
+        # initialize loss and metric
         mse_loss = tf.keras.losses.MeanSquaredError()
         loss_metric = tf.keras.metrics.Mean()
 
-        print('Performing update on Q-Network...', sep='\t')
         with tf.GradientTape() as tape:
             # compute the output
             outputs = self.call(inputs, actions=actions, training=True)
@@ -83,4 +83,4 @@ class QNetwork(tf.keras.Model):
         optimizer.apply_gradients(zip(gradients, self.trainable_variables))
         # get the loss metric
         loss_metric(loss)
-        print('mean loss = {}'.format(loss_metric.result()))
+        return loss
