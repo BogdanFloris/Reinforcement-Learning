@@ -3,6 +3,7 @@ DQN implementation that replicates the results from the seminal paper
 Human-level control through deep reinforcement learning.
 """
 import os
+import itertools
 import tensorflow as tf
 import numpy as np
 from collections import deque
@@ -80,8 +81,8 @@ class DQNAgent:
             os.makedirs(self.video_dir)
         # initialize checkpoint
         self.ckpt = tf.train.Checkpoint(step=tf.Variable(1),
-                                   optimizer=self.optimizer,
-                                   net=self.q_network)
+                                        optimizer=self.optimizer,
+                                        net=self.q_network)
         self.manager = tf.train.CheckpointManager(self.ckpt, self.checkpoint_dir, max_to_keep=3)
         self.ckpt.restore(self.manager.latest_checkpoint)
         if self.manager.latest_checkpoint:
@@ -119,12 +120,56 @@ class DQNAgent:
                                                  estimator=self.q_network)
         self.populate_init_replay_memory()
 
-    def q_learning(self):
+    def dqn(self):
         """
         Perform the Q-learning algorithm
         """
+        # loop over episodes
         for i_episode in tqdm(range(self.num_episodes)):
-            self.ckpt.step.assign_add(1)
+            # get 4 initial frames in the queue
+            frame = process_atari_frame(self.env.reset())
+            for _ in range(self.m):
+                self.last_m_frames.append(frame)
+            state = self.queue_to_state()
+            # initialize loss
+            loss = None
+            for t in itertools.count():
+                # update target network
+                if int(self.ckpt.step) % self.update_frequency:
+                    self.update_target_network()
+                # take a step using the action given by the policy
+                action_probs = self.policy(state, self.get_epsilon())
+                action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+                frame, reward, done, _ = self.env.step(action)
+                frame = process_atari_frame(frame)
+                self.last_m_frames.append(frame)
+                next_state = self.queue_to_state()
+                # add the sample to memory
+                self.memory.add_sample(state, action, reward, next_state, done)
+                # update statistics
+                self.stats.episode_rewards[i_episode] += reward
+                self.stats.episode_lengths[i_episode] = t
+                # sample batch
+                states_batch, actions_batch, rewards_batch, next_states_batch, done_batch = \
+                    self.memory.sample_minibatches(self.batch_size)
+                # perform Q update
+                q_values_next = self.target_q_network.predict(next_states_batch)
+                targets_batch = rewards_batch + np.invert(done_batch).astype(
+                    np.float) * self.discount_factor * np.amax(q_values_next, axis=1)
+                loss = self.q_network.train_batch(states_batch,
+                                                  actions_batch,
+                                                  targets_batch,
+                                                  self.optimizer)
+                # check done
+                if done:
+                    break
+                # update state
+                state = next_state
+                # update checkpoint step
+                self.ckpt.step.assign_add(1)
+            # print loss
+            if i_episode % 10 == 0:
+                print("loss {:1.2f} at episode {}".format(loss.numpy(), i_episode))
 
     def populate_init_replay_memory(self):
         """
