@@ -3,10 +3,14 @@ DQN implementation that replicates the results from the seminal paper
 Human-level control through deep reinforcement learning.
 """
 import os
+import sys
+sys.path.append('../')
 import itertools
 import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
+from gym import wrappers
+from PIL import Image
 from library.estimators.q_network import QNetwork
 from library.dqn.replay_memory import ReplayMemory, FrameQueue
 from library.utils import make_epsilon_greedy_policy
@@ -123,7 +127,6 @@ class DQNAgent:
                                                  epsilon=self.initial_epsilon,
                                                  estimator=self.q_network,
                                                  distribute_prob=False)
-        self.populate_init_replay_memory()
 
     def dqn(self, num_episodes=None):
         """
@@ -132,6 +135,8 @@ class DQNAgent:
         """
         if num_episodes is None:
             num_episodes = self.num_episodes
+        # populate initial replay memory
+        self.populate_init_replay_memory()
         print('Starting training...')
         # loop over episodes
         for i_episode in tqdm(range(num_episodes)):
