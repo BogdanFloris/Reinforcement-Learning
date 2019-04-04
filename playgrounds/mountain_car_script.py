@@ -3,7 +3,8 @@ Script used to train an agent on the Mountain Cart environment
 and then produce a video of that agent solving the problem.
 """
 import sys
-sys.path.append('/Users/bogdanfloris/Workspace/Code/Reinforcement-Learning/')
+import os
+sys.path.append('../')
 import gym
 import numpy as np
 import io
@@ -13,10 +14,13 @@ from IPython.display import HTML
 from library.td_learning import temporal_diff_learning as td
 from library.estimators.estimators import QFunctionSGD
 from library.utils import make_epsilon_greedy_policy
-# TODO: adjust directory to new folder structure (with experiments folder)
 
 # initialize environment
 env = gym.make('MountainCar-v0')
+
+# folder structure
+experiment_dir = os.path.abspath('./experiments/{}'.format(env.spec.id))
+video_dir = os.path.join(experiment_dir, 'video')
 
 # initialize estimator for Q function
 estimator = QFunctionSGD(env)
@@ -26,7 +30,7 @@ epochs = 100
 _, _ = td.q_learning(env, num_episodes=epochs, estimator=estimator, epsilon=0.0)
 
 # wrap in monitor
-env = wrappers.Monitor(env, "./video", force=True)
+env = wrappers.Monitor(env, video_dir, force=True)
 # initialize policy
 policy = make_epsilon_greedy_policy(env.action_space.n, epsilon=0.0, estimator=estimator)
 # play in the environment
@@ -40,7 +44,7 @@ while not done:
 env.close()
 
 # make the video
-video = io.open('./video/openaigym.video.%s.video000000.mp4' % env.file_infix,
+video = io.open(os.path.join(video_dir, 'openaigym.video.%s.video000000.mp4' % env.file_infix),
                 'r+b').read()
 encoded = pybase64.b64encode(video)
 HTML(data='''

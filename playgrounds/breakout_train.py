@@ -2,7 +2,7 @@
 Training for the game of breakout
 """
 import sys
-sys.path.append('/Users/bogdanfloris/Workspace/Code/Reinforcement-Learning/')
+sys.path.append('../')
 import gym
 from library.dqn.dqn import DQNAgent
 
