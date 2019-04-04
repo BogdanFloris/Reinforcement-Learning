@@ -96,11 +96,8 @@ class FrameQueue:
     Queue of size m that holds the last seen m frames.
     """
     def __init__(self, height, width, m=4):
-        self.m = m
         # initialize the queue
         self.queue = np.zeros(shape=(height, width, m), dtype=np.float)
-        # initialize the pointer to where we should append
-        self.top = 0
 
     def append(self, frame):
         """
@@ -111,6 +108,6 @@ class FrameQueue:
 
     def get_queue(self):
         """
-        :return: the transpose of the queue to be used as a state (84, 84, 4)
+        :return: the queue
         """
         return self.queue
