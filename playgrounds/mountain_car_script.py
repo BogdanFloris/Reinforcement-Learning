@@ -2,6 +2,8 @@
 Script used to train an agent on the Mountain Cart environment
 and then produce a video of that agent solving the problem.
 """
+import sys
+sys.path.append('/Users/bogdanfloris/Workspace/Code/Reinforcement-Learning/')
 import gym
 import numpy as np
 import io

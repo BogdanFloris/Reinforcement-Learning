@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from library.dqn.replay_memory import ReplayMemory
+from library.dqn.replay_memory import ReplayMemory, FrameQueue
 
 
 class TestReplayMemory(unittest.TestCase):
@@ -62,3 +62,25 @@ class TestReplayMemory(unittest.TestCase):
         self.assertEqual(rewards.shape, (15,))
         self.assertEqual(next_states.shape, (15, 84, 84, 4))
         self.assertEqual(done.shape, (15,))
+
+
+class TestFrameQueue(unittest.TestCase):
+    def setUp(self) -> None:
+        self.queue = FrameQueue(84, 84, 4)
+        self.frame1 = np.ones((84, 84), dtype=np.float)
+        self.frame2 = np.ones((84, 84), dtype=np.float) * 2.0
+        self.frame3 = np.ones((84, 84), dtype=np.float) * 3.0
+        self.frame4 = np.ones((84, 84), dtype=np.float) * 4.0
+        self.frame5 = np.ones((84, 84), dtype=np.float) * 5.0
+        # initialize it with 3 samples
+        self.queue.append(frame=self.frame1)
+        self.queue.append(frame=self.frame2)
+        self.queue.append(frame=self.frame3)
+
+    def test_add_sample(self):
+        self.queue.append(self.frame4)
+        self.assertTrue(np.array_equal(self.queue.queue[0, 0],
+                                       np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float)))
+        self.queue.append(self.frame5)
+        self.assertTrue(np.array_equal(self.queue.queue[0, 0],
+                                       np.array([2.0, 3.0, 4.0, 5.0], dtype=np.float)))

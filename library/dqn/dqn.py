@@ -6,10 +6,9 @@ import os
 import itertools
 import tensorflow as tf
 import numpy as np
-from collections import deque
 from tqdm import tqdm
 from library.estimators.q_network import QNetwork
-from library.dqn.replay_memory import ReplayMemory
+from library.dqn.replay_memory import ReplayMemory, FrameQueue
 from library.utils import make_epsilon_greedy_policy
 from library.plotting import EpisodeStats
 
@@ -112,7 +111,9 @@ class DQNAgent:
                                    rng=self.rng,
                                    buffer_size=buffer_size)
         # initialize last m frames queue
-        self.last_m_frames = deque(maxlen=self.m)
+        self.frame_queue = FrameQueue(self.input_shape[0],
+                                      self.input_shape[1],
+                                      m=self.m)
         # make a list of all the epsilons used
         self.epsilons = np.linspace(initial_epsilon, final_epsilon, eps_decay_steps)
         # initialize the policy
@@ -137,8 +138,8 @@ class DQNAgent:
             # get 4 initial frames in the queue
             frame = process_atari_frame(self.env.reset())
             for _ in range(self.m):
-                self.last_m_frames.append(frame)
-            state = self.queue_to_state()
+                self.frame_queue.append(frame)
+            state = self.frame_queue.get_queue()
             # initialize loss
             loss = None
             for t in itertools.count():
@@ -150,8 +151,8 @@ class DQNAgent:
                 action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
                 frame, reward, done, _ = self.env.step(action)
                 frame = process_atari_frame(frame)
-                self.last_m_frames.append(frame)
-                next_state = self.queue_to_state()
+                self.frame_queue.append(frame)
+                next_state = self.frame_queue.get_queue()
                 # add the sample to memory
                 self.memory.add_sample(state, action, reward, next_state, done)
                 # update statistics
@@ -193,8 +194,8 @@ class DQNAgent:
         # get 4 initial frames in the queue
         frame = process_atari_frame(self.env.reset())
         for _ in range(self.m):
-            self.last_m_frames.append(frame)
-        state = self.queue_to_state()
+            self.frame_queue.append(frame)
+        state = self.frame_queue.get_queue()
         # loop until we have populated the memory with init_buffer samples
         for _ in tqdm(range(self.init_buffer)):
             # take a step using the action given by the policy
@@ -202,25 +203,19 @@ class DQNAgent:
             action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
             frame, reward, done, _ = self.env.step(action)
             frame = process_atari_frame(frame)
-            self.last_m_frames.append(frame)
-            next_state = self.queue_to_state()
+            self.frame_queue.append(frame)
+            next_state = self.frame_queue.get_queue()
             # add the sample to memory
             self.memory.add_sample(state, action, reward, next_state, done)
             # reset environment if done
             if done:
                 frame = process_atari_frame(self.env.reset())
                 for _ in range(self.m):
-                    self.last_m_frames.append(frame)
-                state = self.queue_to_state()
+                    self.frame_queue.append(frame)
+                state = self.frame_queue.get_queue()
             # else continue
             else:
                 state = next_state
-
-    def queue_to_state(self):
-        """
-        :return: state from the last_m_frames queue
-        """
-        return np.transpose(np.array(self.last_m_frames))
 
     def get_epsilon(self):
         """

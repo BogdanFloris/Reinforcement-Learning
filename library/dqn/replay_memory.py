@@ -89,3 +89,28 @@ class ReplayMemory:
             # increment batch index
             batch_index += 1
         return states, actions, rewards, next_states, done
+
+
+class FrameQueue:
+    """
+    Queue of size m that holds the last seen m frames.
+    """
+    def __init__(self, height, width, m=4):
+        self.m = m
+        # initialize the queue
+        self.queue = np.zeros(shape=(height, width, m), dtype=np.float)
+        # initialize the pointer to where we should append
+        self.top = 0
+
+    def append(self, frame):
+        """
+        Appends a frame to the end of the queue
+        :param frame: an (84, 84) frame
+        """
+        self.queue = np.append(self.queue[:, :, 1:], np.expand_dims(frame, 2), axis=2)
+
+    def get_queue(self):
+        """
+        :return: the transpose of the queue to be used as a state (84, 84, 4)
+        """
+        return self.queue
