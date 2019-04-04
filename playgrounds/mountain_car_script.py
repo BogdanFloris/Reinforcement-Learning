@@ -11,6 +11,7 @@ from IPython.display import HTML
 from library.td_learning import temporal_diff_learning as td
 from library.estimators.estimators import QFunctionSGD
 from library.utils import make_epsilon_greedy_policy
+# TODO: adjust directory to new folder structure (with experiments folder)
 
 # initialize environment
 env = gym.make('MountainCar-v0')
@@ -23,7 +24,7 @@ epochs = 100
 _, _ = td.q_learning(env, num_episodes=epochs, estimator=estimator, epsilon=0.0)
 
 # wrap in monitor
-env = wrappers.Monitor(env, "./mountain-car-video", force=True)
+env = wrappers.Monitor(env, "./video", force=True)
 # initialize policy
 policy = make_epsilon_greedy_policy(env.action_space.n, epsilon=0.0, estimator=estimator)
 # play in the environment
@@ -37,7 +38,7 @@ while not done:
 env.close()
 
 # make the video
-video = io.open('./mountain-car-video/openaigym.video.%s.video000000.mp4' % env.file_infix,
+video = io.open('./video/openaigym.video.%s.video000000.mp4' % env.file_infix,
                 'r+b').read()
 encoded = pybase64.b64encode(video)
 HTML(data='''

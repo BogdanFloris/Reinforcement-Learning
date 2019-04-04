@@ -124,13 +124,16 @@ class DQNAgent:
                                                  distribute_prob=False)
         self.populate_init_replay_memory()
 
-    def dqn(self):
+    def dqn(self, num_episodes=None):
         """
         Perform the Deep Q-Learning algorithm
+        :param num_episodes: number of episodes to perform dqn for
         """
+        if num_episodes is None:
+            num_episodes = self.num_episodes
         print('Starting training...')
         # loop over episodes
-        for i_episode in tqdm(range(self.num_episodes)):
+        for i_episode in tqdm(range(num_episodes)):
             # get 4 initial frames in the queue
             frame = process_atari_frame(self.env.reset())
             for _ in range(self.m):
@@ -172,7 +175,6 @@ class DQNAgent:
                 state = next_state
                 # update checkpoint step
                 self.ckpt.step.assign_add(1)
-                print(loss)
             # print loss and save
             if i_episode % 10 == 0:
                 self.manager.save()
