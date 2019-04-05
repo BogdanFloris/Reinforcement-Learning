@@ -22,16 +22,16 @@ class DQNAgent:
                  seed=42,
                  experiment_dir=None,
                  input_shape=(84, 84, 4),
-                 buffer_size=500000,
-                 init_buffer=50000,
+                 buffer_size=100000,
+                 init_buffer=10000,
                  batch_size=32,
                  m=4,
-                 update_frequency=10000,
+                 update_frequency=1000,
                  learning_rate=0.00025,
                  discount_factor=0.99,
                  initial_epsilon=1.0,
                  final_epsilon=0.1,
-                 eps_decay_steps=500000):
+                 eps_decay_steps=100000):
         """
         Performs the initialization of the DQN Agent:
          - copies the given parameters
@@ -158,6 +158,7 @@ class DQNAgent:
                 # update target network if we hit the update frequency
                 if int(self.ckpt.step) % self.update_frequency:
                     self.update_target_network()
+
                 # get the probabilities of the actions
                 action_probs = self.policy(np.expand_dims(state, 0), self.get_epsilon())
                 # choose an action given the probabilities
@@ -167,22 +168,28 @@ class DQNAgent:
                 # process the new frame and add it to the frame queue
                 frame = process_atari_frame(frame)
                 self.frame_queue.append(frame)
+
                 # get the next_state from the queue
                 next_state = self.frame_queue.get_queue()
                 # add the sample to memory
                 self.memory.add_sample(state, action, reward, next_state, done)
+
                 # update statistics
                 self.stats.episode_rewards[i_episode] += reward
                 self.stats.episode_lengths[i_episode] = t
+
                 # sample batch
                 states_batch, actions_batch, rewards_batch, next_states_batch, done_batch = \
                     self.memory.sample_minibatches(self.batch_size)
-                # perform Q update
-                # TODO: Change targets_batch to new network update
+                # get the predictions for the next states using the target network
                 q_values_next = self.target_q_network.predict(next_states_batch)
+                # TODO: Change targets_batch to new network update
+                # calculate the targets batch
                 targets_batch = rewards_batch + np.invert(done_batch).astype(
                     np.float) * self.discount_factor * np.amax(q_values_next, axis=1)
+                # perform an update to the q network
                 loss = self.q_network.train_on_batch(x=states_batch, y=targets_batch)
+
                 # check done
                 if done:
                     break
