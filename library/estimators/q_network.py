@@ -37,7 +37,7 @@ class QNetwork(tf.keras.Model):
         self.dense1 = tf.keras.layers.Dense(512, activation='relu')
         self.dense2 = tf.keras.layers.Dense(self.no_actions)
 
-    def call(self, inputs, actions=None, training=None):
+    def call(self, inputs):
         # first scale to 0..1
         output = tf.cast(inputs, dtype=tf.float32) / 255.0
         # apply convolution layers
@@ -49,38 +49,4 @@ class QNetwork(tf.keras.Model):
         # apply the two dense layers
         output = self.dense1(output)
         output = self.dense2(output)
-        if training:
-            if actions is None:
-                raise ValueError('Argument actions cannot be None in training')
-            # if we are not training, then we can leave the output as is
-            # if we are training, we need to return only the output
-            # that corresponds to the played action
-            indices = tf.range(output.shape[0]) * output.shape[1] + actions
-            output = tf.gather(tf.reshape(output, [-1]), indices)
         return output
-
-    def train_batch(self, inputs, actions, targets, optimizer):
-        """
-        Trains one batch.
-        :param inputs: of shape (batch_size, 84, 84, 4)
-        :param actions: of shape (batch_size)
-        :param targets: of shape (batch_size)
-        :param optimizer: the optimizer used to train
-        :return: the loss
-        """
-        # initialize loss and metric
-        mse_loss = tf.keras.losses.MeanSquaredError()
-        loss_metric = tf.keras.metrics.Mean()
-
-        with tf.GradientTape() as tape:
-            # compute the output
-            outputs = self.call(inputs, actions=actions, training=True)
-            # compute the loss between the output and the target
-            loss = mse_loss(outputs, targets)
-        # compute gradients
-        gradients = tape.gradient(loss, self.trainable_variables)
-        # apply gradients using the optimizer
-        optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-        # get the loss metric
-        loss_metric(loss)
-        return loss

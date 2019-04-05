@@ -9,8 +9,6 @@ import itertools
 import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
-from gym import wrappers
-from PIL import Image
 from library.estimators.q_network import QNetwork
 from library.dqn.replay_memory import ReplayMemory, FrameQueue
 from library.utils import make_epsilon_greedy_policy
@@ -73,6 +71,7 @@ class DQNAgent:
         self.initial_epsilon = initial_epsilon
         self.final_epsilon = final_epsilon
         self.eps_decay_steps = eps_decay_steps
+
         # initialize the directories
         if experiment_dir is None:
             experiment_dir = os.path.abspath('./experiments/{}'.format(env.spec.id))
@@ -85,11 +84,13 @@ class DQNAgent:
             os.makedirs(self.video_dir)
         if not os.path.exists(self.weights_dir):
             os.makedirs(self.weights_dir)
+
         # initialize episode statistics
         self.stats = EpisodeStats(
             episode_lengths=np.zeros(self.num_episodes),
             episode_rewards=np.zeros(self.num_episodes)
         )
+
         # initialize networks
         self.q_network = QNetwork(input_shape=input_shape,
                                   no_actions=env.action_space.n,
@@ -99,6 +100,10 @@ class DQNAgent:
                                          rng=self.rng)
         # initialize optimizer
         self.optimizer = tf.keras.optimizers.RMSprop(learning_rate=self.learning_rate)
+        # compile the model
+        self.q_network.compile(optimizer=self.optimizer,
+                               loss='mse')
+
         # initialize checkpoint
         self.ckpt = tf.train.Checkpoint(step=tf.Variable(1),
                                         optimizer=self.optimizer,
@@ -109,6 +114,7 @@ class DQNAgent:
             print('Restored from {}'.format(self.manager.latest_checkpoint))
         else:
             print('Initializing Q network from scratch')
+
         # initialize replay memory
         self.memory = ReplayMemory(self.input_shape[0],
                                    self.input_shape[1],
@@ -147,16 +153,21 @@ class DQNAgent:
             state = self.frame_queue.get_queue()
             # initialize loss
             loss = None
+            # execute a episode
             for t in itertools.count():
-                # update target network
+                # update target network if we hit the update frequency
                 if int(self.ckpt.step) % self.update_frequency:
                     self.update_target_network()
-                # take a step using the action given by the policy
+                # get the probabilities of the actions
                 action_probs = self.policy(np.expand_dims(state, 0), self.get_epsilon())
+                # choose an action given the probabilities
                 action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+                # take a step in the environment
                 frame, reward, done, _ = self.env.step(action)
+                # process the new frame and add it to the frame queue
                 frame = process_atari_frame(frame)
                 self.frame_queue.append(frame)
+                # get the next_state from the queue
                 next_state = self.frame_queue.get_queue()
                 # add the sample to memory
                 self.memory.add_sample(state, action, reward, next_state, done)
@@ -167,13 +178,11 @@ class DQNAgent:
                 states_batch, actions_batch, rewards_batch, next_states_batch, done_batch = \
                     self.memory.sample_minibatches(self.batch_size)
                 # perform Q update
+                # TODO: Change targets_batch to new network update
                 q_values_next = self.target_q_network.predict(next_states_batch)
                 targets_batch = rewards_batch + np.invert(done_batch).astype(
                     np.float) * self.discount_factor * np.amax(q_values_next, axis=1)
-                loss = self.q_network.train_batch(states_batch,
-                                                  actions_batch,
-                                                  targets_batch,
-                                                  self.optimizer)
+                loss = self.q_network.train_on_batch(x=states_batch, y=targets_batch)
                 # check done
                 if done:
                     break
@@ -181,10 +190,14 @@ class DQNAgent:
                 state = next_state
                 # update checkpoint step
                 self.ckpt.step.assign_add(1)
-            # print loss and save
+            # save model and print statistics for debugging
             if i_episode % 10 == 0:
                 self.manager.save()
-                print("loss {:1.2f} at episode {}".format(loss.numpy(), i_episode))
+                print("Episode {}: loss {:1.2f}, reward: {}, episode length: {}".format(
+                    loss.numpy(),
+                    i_episode,
+                    self.stats.episode_rewards[i_episode],
+                    self.stats.episode_lengths[i_episode]))
         print('Finished training')
         print('Saving weights...')
         self.q_network.save_weights(self.weights_dir)
