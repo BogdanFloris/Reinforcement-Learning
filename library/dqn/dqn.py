@@ -183,10 +183,12 @@ class DQNAgent:
                     self.memory.sample_minibatches(self.batch_size)
                 # get the predictions for the next states using the target network
                 q_values_next = self.target_q_network.predict(next_states_batch)
-                # TODO: Change targets_batch to new network update
-                # calculate the targets batch
-                targets_batch = rewards_batch + np.invert(done_batch).astype(
-                    np.float) * self.discount_factor * np.amax(q_values_next, axis=1)
+                # calculate the targets batch by first predicting it from the model
+                # and then updating those indices where actions where played
+                targets_batch = self.q_network.predict(states_batch)
+                targets_batch[np.arange(self.batch_size), actions_batch] =\
+                    rewards_batch + np.invert(done_batch).astype(np.float)\
+                    * self.discount_factor * np.amax(q_values_next, axis=1)
                 # perform an update to the q network
                 loss = self.q_network.train_on_batch(x=states_batch, y=targets_batch)
 
@@ -201,8 +203,8 @@ class DQNAgent:
             if i_episode % 10 == 0:
                 self.manager.save()
                 print("Episode {}: loss {:1.2f}, reward: {}, episode length: {}".format(
-                    loss.numpy(),
                     i_episode,
+                    loss,
                     self.stats.episode_rewards[i_episode],
                     self.stats.episode_lengths[i_episode]))
         print('Finished training')
