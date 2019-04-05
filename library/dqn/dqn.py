@@ -200,7 +200,7 @@ class DQNAgent:
                 # update checkpoint step
                 self.ckpt.step.assign_add(1)
             # save model and print statistics for debugging
-            if i_episode % 10 == 0:
+            if i_episode % 1 == 0:
                 self.manager.save()
                 print("Episode {}: loss {:1.2f}, reward: {}, episode length: {}".format(
                     i_episode,
