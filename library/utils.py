@@ -1,8 +1,10 @@
 """
 Utilities module
 """
+import imageio
 import numpy as np
 from collections import defaultdict
+from skimage.transform import resize
 
 
 def make_random_policy(action_count):
@@ -77,3 +79,19 @@ def create_state_value_function(q):
     for state, action_values in q.items():
         state_values[state] = np.max(action_values)
     return state_values
+
+
+def generate_gif(frames, number, reward, path):
+    """
+    Creates a GIF from the given frames.
+    :param frames: sequence of (210, 160, 3) Atari frames
+    :param number: index used for saving
+    :param reward: total reward for the sequence
+    :param path: where to save the GIF
+    """
+    for i, frame in enumerate(frames):
+        frames[i] = resize(frame, (420, 320, 3),
+                           order=0, preserve_range=True).astype(np.uint8)
+
+    imageio.mimsave(path + '/atari-episode-{}-reward-{}.gif'.format(
+        number, reward), frames, duration=1/30)

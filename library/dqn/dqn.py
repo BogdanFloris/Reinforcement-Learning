@@ -10,18 +10,17 @@ from datetime import datetime
 import tensorflow as tf
 import tensorflow.python as tf
 import numpy as np
-from tqdm import tqdm
 from library.estimators.q_network import QNetwork
 from library.dqn.replay_memory import ReplayMemory
-from library.utils import make_epsilon_greedy_policy
-from library.atari import process_atari_frame, AtariWrapper
+from library.utils import make_epsilon_greedy_policy, generate_gif
+from library.atari import AtariWrapper
 from library.plotting import EpisodeStats
 
 
 class DQNAgent:
     def __init__(self,
                  env_name,
-                 num_episodes,
+                 num_episodes=10000,
                  seed=42,
                  experiment_dir=None,
                  input_shape=(84, 84, 4),
@@ -39,7 +38,8 @@ class DQNAgent:
                  final_epsilon=0.1,
                  eps_decay_steps=100000,
                  max_episode_length=18000,
-                 print_every=1):
+                 print_every=1,
+                 train=False):
         """
         Performs the initialization of the DQN Agent:
          - copies the given parameters
@@ -68,6 +68,7 @@ class DQNAgent:
         :param eps_decay_steps: how many epsilons between initial and final
         :param max_episode_length: the maximum number of episode steps (5 minutes)
         :param print_every: how often we print during training
+        :param train: whether we are training the agent or not
         """
         # initialize parameters
         self.num_episodes = num_episodes
@@ -126,9 +127,10 @@ class DQNAgent:
                                         optimizer=self.optimizer,
                                         net=self.q_network)
         self.manager = tf.train.CheckpointManager(self.ckpt, self.checkpoint_dir, max_to_keep=3)
-        self.ckpt.restore(self.manager.latest_checkpoint)
-        if self.manager.latest_checkpoint:
-            print('Restored from {}'.format(self.manager.latest_checkpoint))
+        if not train:
+            self.ckpt.restore(self.manager.latest_checkpoint)
+        if self.manager.latest_checkpoint and not train:
+            print('Restored checkpoint from {}'.format(self.manager.latest_checkpoint))
         else:
             print('Initializing Q network from scratch')
 
@@ -143,10 +145,10 @@ class DQNAgent:
         # make a list of all the epsilons used
         self.epsilons = np.linspace(initial_epsilon, final_epsilon, eps_decay_steps)
         # initialize the policy
-        # !Note: always use it like this: policy(state, epsilon)
-        # if epsilon is not given, it's going to default to initial_epsilon
+        # if epsilon is not given, it's going to default to 0
+        # !Thus, always use it like this: policy(state, epsilon) in training
         self.policy = make_epsilon_greedy_policy(self.no_actions,
-                                                 epsilon=self.initial_epsilon,
+                                                 epsilon=0.0,
                                                  estimator=self.q_network,
                                                  distribute_prob=False)
 
@@ -158,58 +160,47 @@ class DQNAgent:
         if num_episodes is None:
             num_episodes = self.num_episodes
 
-        print('Starting training...')
+        # Train the DQN agent
+        # -------------------
+        loss_list = []
+        print('Training...')
         # loop over episodes
-        for i_episode in tqdm(range(num_episodes)):
+        for i_episode in range(num_episodes):
 
-            # get 4 initial frames in the queue
-            frame = process_atari_frame(self.env.reset())
-            for _ in range(self.m):
-                self.frame_queue.append(frame)
-            state = self.frame_queue.get_queue()
+            # reset the environment
+            _ = self.env.reset()
             # initialize loss
             loss = None
 
             # execute a episode
             for t in itertools.count():
 
-                # update target network if we hit the update frequency
-                if int(self.ckpt.step) % self.target_update_frequency:
-                    self.update_target_network()
-
                 # get the probabilities of the actions
-                action_probs = self.policy(tf.expand_dims(state, 0), self.get_epsilon())
+                action_probs = self.policy(self.env.state, self.get_epsilon())
                 # choose an action given the probabilities
                 action = np.random.choice(tf.range(len(action_probs)), p=action_probs)
-                # take a step in the environment
-                frame, reward, done, _ = self.env.step(action)
-                # process the new frame and add it to the frame queue
-                frame = process_atari_frame(frame)
-                self.frame_queue.append(frame)
 
-                # get the next_state from the queue
-                next_state = self.frame_queue.get_queue()
-                # add the sample to memory
-                self.memory.add_sample(state, action, reward, next_state, done)
+                # take a step in the environment
+                processed_frame, reward, done, life_lost, _ = self.env.step(action)
+
+                # add sample to memory
+                self.memory.add_sample(processed_frame[:, :, 0], action, reward, life_lost)
 
                 # update statistics
                 self.stats.episode_rewards[i_episode] += reward
                 self.stats.episode_lengths[i_episode] = t
 
-                # sample batch
-                states_batch, actions_batch, rewards_batch, next_states_batch, done_batch = \
-                    self.memory.sample_minibatch()
-                # get the predictions for the next states using the target network
-                q_values_next = self.target_q_network.predict(next_states_batch)
-                # calculate the targets batch by first predicting it from the model
-                # and then updating those indices where actions where played
-                targets_batch = self.q_network.predict(states_batch)
-                targets_batch[np.arange(self.batch_size), actions_batch] =\
-                    rewards_batch + np.invert(done_batch).astype(np.float)\
-                    * self.discount_factor * np.amax(q_values_next, axis=1)
+                # perform a training update if we hit the update frequency
+                if int(self.ckpt.step) % self.update_frequency:
+                    loss = self.q_update()
+                    loss_list.append(loss.numpy())
 
-                # perform an update to the q network
-                loss = self.q_network.train_on_batch(x=states_batch, y=targets_batch)
+                # update target network if we hit the update frequency
+                if int(self.ckpt.step) % self.target_update_frequency:
+                    self.update_target_network()
+
+                # update checkpoint step
+                self.ckpt.step.assign_add(1)
 
                 # check done
                 if done:
@@ -217,11 +208,6 @@ class DQNAgent:
                 # check max episode number
                 if t == self.max_episode_length:
                     break
-
-                # update state
-                state = next_state
-                # update checkpoint step
-                self.ckpt.step.assign_add(1)
 
             # save model and print statistics for debugging
             if i_episode % self.print_every == 0:
@@ -278,38 +264,6 @@ class DQNAgent:
         self.optimizer.apply_gradients(zip(gradients, self.q_network.trainable_variables))
 
         return loss
-
-    # def populate_init_replay_memory(self):
-    #     """
-    #     Called at the beginning of learning in order to populate
-    #     the replay memory with an initial self.init_buffer experiences.
-    #     """
-    #     print('Populating memory with initial experience...')
-    #     # get 4 initial frames in the queue
-    #     frame = process_atari_frame(self.env.reset())
-    #     for _ in range(self.m):
-    #         self.frame_queue.append(frame)
-    #     state = self.frame_queue.get_queue()
-    #     # loop until we have populated the memory with init_buffer samples
-    #     for _ in tqdm(range(self.init_buffer)):
-    #         # take a step using the action given by the policy
-    #         action_probs = self.policy(np.expand_dims(state, 0), self.get_epsilon())
-    #         action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
-    #         frame, reward, done, _ = self.env.step(action)
-    #         frame = process_atari_frame(frame)
-    #         self.frame_queue.append(frame)
-    #         next_state = self.frame_queue.get_queue()
-    #         # add the sample to memory
-    #         self.memory.add_sample(state, action, reward, next_state, done)
-    #         # reset environment if done
-    #         if done:
-    #             frame = process_atari_frame(self.env.reset())
-    #             for _ in range(self.m):
-    #                 self.frame_queue.append(frame)
-    #             state = self.frame_queue.get_queue()
-    #         # else continue
-    #         else:
-    #             state = next_state
 
     def get_epsilon(self):
         """
