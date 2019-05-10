@@ -65,7 +65,7 @@ class QNetwork(tf.keras.Model):
             kernel_initializer=tf.initializers.VarianceScaling(scale=0.2)
         )
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs):
         # first scale to 0..1
         output = tf.cast(inputs, dtype=tf.float32) / 255.0
         # apply convolution layers
