@@ -30,14 +30,14 @@ class ReplayMemory:
         self.current = 0
 
         # initialize buffers for history
-        self.frames = np.zeros(shape=(buffer_size, height, width), dtype=np.uint8)
+        self.frames = np.zeros(shape=(buffer_size, height, width), dtype=np.float32)
         self.actions = np.zeros(shape=buffer_size, dtype=np.int)
         self.rewards = np.zeros(shape=buffer_size, dtype=np.float)
         self.done = np.zeros(shape=buffer_size, dtype=np.bool)
 
         # initialize mini batches for states and new states
-        self.states = np.zeros(shape=(batch_size, m, height, width), dtype=np.uint8)
-        self.new_states = np.zeros(shape=(batch_size, m, height, width), dtype=np.uint8)
+        self.states = np.zeros(shape=(batch_size, m, height, width), dtype=np.float32)
+        self.new_states = np.zeros(shape=(batch_size, m, height, width), dtype=np.float32)
         self.indices = np.zeros(shape=batch_size, dtype=np.int)
 
     def add_sample(self, frame, action, reward, done):
@@ -55,7 +55,7 @@ class ReplayMemory:
         self.rewards[self.current] = reward
         self.done[self.current] = done
         self.size = max(self.size, self.current + 1)
-        self.current = (self.current + 1) % self.size
+        self.current = (self.current + 1) % self.buffer_size
 
     def _get_valid_indices(self):
         """
@@ -103,113 +103,3 @@ class ReplayMemory:
             self.rewards[self.indices],\
             np.transpose(self.new_states, axes=(0, 2, 3, 1)),\
             self.done[self.indices]
-
-
-class ReplayMemoryOld:
-    """
-    The replay memory of a DQN agent
-    represented a circular buffer.
-    """
-    def __init__(self, height, width, rng, buffer_size=1000, m=4):
-        """
-        Initializes the replay memory.
-        :param height: the image height
-        :param width: the image width
-        :param rng: the random number generator
-        :param buffer_size: size of the buffer
-        :param m: number of frames used as input to the network
-        """
-        raise ValueError('Obsolete')
-        self.height = height
-        self.width = width
-        self.rng = rng
-        self.buffer_size = buffer_size
-        self.m = m
-        # initialize buffers
-        self.states = np.zeros(shape=(buffer_size, height, width, m), dtype=np.float)
-        self.actions = np.zeros(shape=buffer_size, dtype=np.int)
-        self.rewards = np.zeros(shape=buffer_size, dtype=np.float)
-        self.next_states = np.zeros(shape=(buffer_size, height, width, m), dtype=np.float)
-        self.done = np.zeros(shape=buffer_size, dtype=np.bool)
-        # number of elements in the buffer
-        self.size = 0
-        # pointers in the buffer
-        self.bottom = 0
-        self.top = 0
-
-    def __len__(self):
-        return self.size
-
-    def add_sample(self, state, action, reward, next_state, done):
-        """
-        Adds a sample to the memory.
-        :param state: the state sample
-        :param action: the action sample
-        :param reward: the reward sample
-        :param next_state: the next state sample
-        :param done: is the sample done or not
-        """
-        # put the elements in the buffer
-        self.states[self.top] = state
-        self.actions[self.top] = action
-        self.rewards[self.top] = reward
-        self.next_states[self.top] = next_state
-        self.done[self.top] = done
-        # update the pointers in the buffer
-        if self.size == self.buffer_size:
-            # the buffer is full so wrap around
-            self.bottom = (self.bottom + 1) % self.buffer_size
-        else:
-            # just increase the size
-            self.size += 1
-        self.top = (self.top + 1) % self.buffer_size
-
-    def sample_minibatches(self, batch_size):
-        """
-        Samples batch_size samples from the replay memory
-        :param batch_size: the minibatch size
-        :return: the samples
-        """
-        # initialize the returns
-        states = np.zeros((batch_size, self.height, self.width, self.m), dtype=np.float)
-        actions = np.zeros(batch_size, dtype=np.int)
-        rewards = np.zeros(batch_size, dtype=np.float)
-        next_states = np.zeros((batch_size, self.height, self.width, self.m), dtype=np.float)
-        done = np.zeros(batch_size, dtype=np.bool)
-        # counter for batches
-        batch_index = 0
-        while batch_index < batch_size:
-            # choose index for replay memory
-            index = self.rng.randint(self.bottom, self.bottom + self.size)
-            # assign to the returns (wrap around)
-            states[batch_index] = self.states.take(index, axis=0, mode='wrap')
-            actions[batch_index] = self.actions.take(index, mode='wrap')
-            rewards[batch_index] = self.rewards.take(index, mode='wrap')
-            next_states[batch_index] = self.next_states.take(index, axis=0, mode='wrap')
-            done[batch_index] = self.done.take(index, mode='wrap')
-            # increment batch index
-            batch_index += 1
-        return states, actions, rewards, next_states, done
-
-
-class FrameQueue:
-    """
-    Queue of size m that holds the last seen m frames.
-    """
-    def __init__(self, height, width, m=4):
-        # initialize the queue
-        self.queue = np.zeros(shape=(height, width, m), dtype=np.float)
-        raise ValueError('Obsolete')
-
-    def append(self, frame):
-        """
-        Appends a frame to the end of the queue
-        :param frame: an (84, 84) frame
-        """
-        self.queue = np.append(self.queue[:, :, 1:], np.expand_dims(frame, 2), axis=2)
-
-    def get_queue(self):
-        """
-        :return: the queue
-        """
-        return self.queue

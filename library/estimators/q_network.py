@@ -66,10 +66,8 @@ class QNetwork(tf.keras.Model):
         )
 
     def call(self, inputs):
-        # first scale to 0..1
-        output = tf.cast(inputs, dtype=tf.float32) / 255.0
         # apply convolution layers
-        output = self.conv1(output)
+        output = self.conv1(inputs)
         output = self.conv2(output)
         output = self.conv3(output)
         output = self.conv4(output)

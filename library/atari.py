@@ -66,6 +66,7 @@ class AtariWrapper:
         return processed_frame, reward, done, life_lost, new_frame
 
 
+@tf.function
 def process_atari_frame(frame):
     """
     Transforms the given atari frame by applying the following steps:
@@ -78,4 +79,5 @@ def process_atari_frame(frame):
     output = tf.image.rgb_to_grayscale(frame)
     output = tf.image.crop_to_bounding_box(output, 34, 0, 160, 160)
     output = tf.image.resize(output, (84, 84), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    output = tf.cast(output, tf.float32) / 255.0
     return output

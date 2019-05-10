@@ -122,7 +122,7 @@ class DQNAgent:
         self.loss_fn = tf.keras.losses.Huber()
 
         # initialize checkpoint
-        self.ckpt = tf.train.Checkpoint(step=tf.Variable(1),
+        self.ckpt = tf.train.Checkpoint(step=tf.Variable(0),
                                         optimizer=self.optimizer,
                                         net=self.q_network)
         self.manager = tf.train.CheckpointManager(self.ckpt, self.checkpoint_dir, max_to_keep=3)
@@ -175,7 +175,8 @@ class DQNAgent:
             for t in itertools.count():
 
                 # get the probabilities of the actions
-                action_probs = self.policy(self.env.state, self.get_epsilon())
+                action_probs = self.policy(tf.expand_dims(self.env.state, axis=0),
+                                           self.get_epsilon())
                 # choose an action given the probabilities
                 action = np.random.choice(tf.range(len(action_probs)), p=action_probs)
 
@@ -190,12 +191,13 @@ class DQNAgent:
                 self.stats.episode_lengths[i_episode] = t
 
                 # perform a training update if we hit the update frequency
-                if int(self.ckpt.step) % self.update_frequency:
+                if int(self.ckpt.step) % self.update_frequency == 0\
+                        and int(self.ckpt.step) > self.init_buffer:
                     loss = self.q_update()
                     loss_list.append(loss.numpy())
 
                 # update target network if we hit the update frequency
-                if int(self.ckpt.step) % self.target_update_frequency:
+                if int(self.ckpt.step) % self.target_update_frequency == 0:
                     self.update_target_network()
 
                 # update checkpoint step
@@ -210,17 +212,26 @@ class DQNAgent:
 
             # save model and print statistics for debugging
             if i_episode % self.print_every == 0:
-                self.manager.save()
-                print("[{}] Episode {}/{}: loss {:.4f}, reward: {}, episode length: {}".format(
-                    datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    i_episode,
-                    num_episodes,
-                    loss,
-                    self.stats.episode_rewards[i_episode],
-                    self.stats.episode_lengths[i_episode]))
+                if loss is not None:
+                    self.manager.save()
+                    print("[{}] Episode {}/{}: loss {:.4f}, reward: {}, episode length: {}".format(
+                        datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        i_episode,
+                        num_episodes,
+                        loss,
+                        self.stats.episode_rewards[i_episode],
+                        self.stats.episode_lengths[i_episode]))
+                else:
+                    print('[{}] Initializing replay memory: Episode {}/{}, reward: {}, episode length: {}'.format(
+                        datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        i_episode,
+                        num_episodes,
+                        self.stats.episode_rewards[i_episode],
+                        self.stats.episode_lengths[i_episode]
+                    ))
 
             # evaluate the model so far if we hit the evaluation frequency
-            if int(self.ckpt.step) % self.eval_frequency:
+            if int(self.ckpt.step) % self.eval_frequency == 0:
                 self.play()
 
         print('Finished training')
@@ -245,8 +256,7 @@ class DQNAgent:
         # get the Q values for the new states using the target network
         q_values_new_target = self.target_q_network.predict(new_states)
         # get the double Q values
-        double_q = tf.convert_to_tensor(q_values_new_target.numpy()[
-                                            np.arange(self.batch_size), best_actions])
+        double_q = q_values_new_target[np.arange(self.batch_size), best_actions]
         # compute the target Q values
         target_q = rewards + (self.discount_factor * double_q * (1 - done))
 
@@ -290,7 +300,7 @@ class DQNAgent:
                 action = 1
             else:
                 # get the probabilities of the actions (epsilon is 0)
-                action_probs = self.policy(self.env.state)
+                action_probs = self.policy(tf.expand_dims(self.env.state, axis=0))
                 # choose an action given the probabilities
                 action = np.random.choice(tf.range(len(action_probs)), p=action_probs)
 
