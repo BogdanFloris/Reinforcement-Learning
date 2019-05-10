@@ -8,7 +8,6 @@ sys.path.append('../')
 import itertools
 from datetime import datetime
 import tensorflow as tf
-import tensorflow.python as tf
 import numpy as np
 from library.estimators.q_network import QNetwork
 from library.dqn.replay_memory import ReplayMemory
@@ -220,6 +219,10 @@ class DQNAgent:
                     self.stats.episode_rewards[i_episode],
                     self.stats.episode_lengths[i_episode]))
 
+            # evaluate the model so far if we hit the evaluation frequency
+            if int(self.ckpt.step) % self.eval_frequency:
+                self.play()
+
         print('Finished training')
         print('Saving weights...')
         self.q_network.save_weights(self.weights_dir)
@@ -264,6 +267,48 @@ class DQNAgent:
         self.optimizer.apply_gradients(zip(gradients, self.q_network.trainable_variables))
 
         return loss
+
+    def play(self, no_games=1):
+        """
+        Play a number of games using the learned policy
+        and produce GIFs for each game.
+        """
+        done = True
+        life_lost = True
+        reward_sum = 0
+        frames = []
+
+        for _ in range(no_games):
+
+            if done:
+                life_lost = self.env.reset(evaluate=True)
+
+            # get an action
+            if life_lost:
+                # Always play 1 at first
+                # NOTE: will probably need to change this for other games
+                action = 1
+            else:
+                # get the probabilities of the actions (epsilon is 0)
+                action_probs = self.policy(self.env.state)
+                # choose an action given the probabilities
+                action = np.random.choice(tf.range(len(action_probs)), p=action_probs)
+
+            # take the step
+            processed_frame, reward, done, life_lost, frame = self.env.step(action)
+
+            # update the reward
+            reward_sum += reward
+            # add frame
+            frames.append(frame)
+
+            # if the game is truly finished make the gif and reset everything
+            if self.env.lives == 0:
+                generate_gif(frames, reward_sum, self.video_dir,
+                             number=int(self.ckpt.step), evaluation=True)
+                done = True
+                reward_sum = 0
+                frames = []
 
     def get_epsilon(self):
         """

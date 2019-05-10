@@ -81,17 +81,20 @@ def create_state_value_function(q):
     return state_values
 
 
-def generate_gif(frames, number, reward, path):
+def generate_gif(frames, reward, path, number=None, evaluation=False):
     """
     Creates a GIF from the given frames.
     :param frames: sequence of (210, 160, 3) Atari frames
-    :param number: index used for saving
     :param reward: total reward for the sequence
     :param path: where to save the GIF
+    :param number: index used for saving
+    :param evaluation: whether we are evaluating or just playing
     """
     for i, frame in enumerate(frames):
         frames[i] = resize(frame, (420, 320, 3),
                            order=0, preserve_range=True).astype(np.uint8)
-
-    imageio.mimsave(path + '/atari-episode-{}-reward-{}.gif'.format(
-        number, reward), frames, duration=1/30)
+    if evaluation:
+        path += '/atari-step-{}-reward-{}.gif'.format(number, reward)
+    else:
+        path += '/atari-play-reward-{}.gif'.format(reward)
+    imageio.mimsave(path, frames, duration=1/30)
