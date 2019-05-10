@@ -270,6 +270,6 @@ def process_atari_frame(frame):
     """
     output = tf.image.rgb_to_grayscale(frame)
     output = tf.image.crop_to_bounding_box(output, 34, 0, 160, 160)
-    output = tf.image.resize(output, (84, 84))
+    output = tf.image.resize(output, (84, 84), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     output = tf.squeeze(output)
     return output
