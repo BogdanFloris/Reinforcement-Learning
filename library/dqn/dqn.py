@@ -28,14 +28,14 @@ class DQNAgent:
                  batch_size=32,
                  m=4,
                  update_frequency=4,
-                 target_update_frequency=1000,
-                 eval_frequency=20000,
+                 target_update_frequency=10000,
+                 eval_frequency=10000,
                  eval_steps=10000,
                  learning_rate=0.00001,
                  discount_factor=0.99,
                  initial_epsilon=1.0,
                  final_epsilon=0.1,
-                 eps_decay_steps=100000,
+                 eps_decay_steps=1000000,
                  max_episode_length=18000,
                  print_every=1,
                  train=False):
@@ -97,6 +97,7 @@ class DQNAgent:
         self.checkpoint_dir = os.path.join(experiment_dir, 'checkpoints')
         self.video_dir = os.path.join(experiment_dir, 'video')
         self.weights_dir = os.path.join(experiment_dir, 'weights')
+        print(str(self.video_dir))
         if not os.path.exists(self.checkpoint_dir):
             os.makedirs(self.checkpoint_dir)
         if not os.path.exists(self.video_dir):
@@ -200,6 +201,10 @@ class DQNAgent:
                 if int(self.ckpt.step) % self.target_update_frequency == 0:
                     self.update_target_network()
 
+                # evaluate the model so far if we hit the evaluation frequency
+                if int(self.ckpt.step) % self.eval_frequency == 0:
+                    self.play()
+
                 # update checkpoint step
                 self.ckpt.step.assign_add(1)
 
@@ -214,7 +219,7 @@ class DQNAgent:
             if i_episode % self.print_every == 0:
                 if loss is not None:
                     self.manager.save()
-                    print("[{}] Episode {}/{}: loss {:.4f}, reward: {}, episode length: {}".format(
+                    print("[{}] Episode {}/{}: loss {:.10f}, reward: {}, episode length: {}".format(
                         datetime.now().strftime("%Y-%m-%d %H:%M"),
                         i_episode,
                         num_episodes,
@@ -229,10 +234,6 @@ class DQNAgent:
                         self.stats.episode_rewards[i_episode],
                         self.stats.episode_lengths[i_episode]
                     ))
-
-            # evaluate the model so far if we hit the evaluation frequency
-            if int(self.ckpt.step) % self.eval_frequency == 0:
-                self.play()
 
         print('Finished training')
         print('Saving weights...')
@@ -259,13 +260,14 @@ class DQNAgent:
         double_q = q_values_new_target[np.arange(self.batch_size), best_actions]
         # compute the target Q values
         target_q = rewards + (self.discount_factor * double_q * (1 - done))
+        # one hot vector
+        one_hot = tf.one_hot(actions, self.no_actions, dtype=tf.float32)
 
         with tf.GradientTape() as tape:
             # predict the Q values for the states using the main network
-            q_values = self.q_network.predict(states)
+            q_values = self.q_network(states)
             # compute the q value predictions using the actions taken
-            q = tf.reduce_sum(tf.multiply(q_values, tf.one_hot(
-                actions, self.no_actions, dtype=tf.float32)), axis=1)
+            q = tf.reduce_sum(tf.multiply(q_values, one_hot), axis=1)
 
             # compute the loss
             loss = self.loss_fn(y_true=target_q, y_pred=q)
@@ -287,8 +289,9 @@ class DQNAgent:
         life_lost = True
         reward_sum = 0
         frames = []
+        print('Evaluation...')
 
-        for _ in range(no_games):
+        for _ in range(self.eval_steps):
 
             if done:
                 life_lost = self.env.reset(evaluate=True)
@@ -314,11 +317,10 @@ class DQNAgent:
 
             # if the game is truly finished make the gif and reset everything
             if self.env.lives == 0:
+                print('Making GIF...')
                 generate_gif(frames, reward_sum, self.video_dir,
                              number=int(self.ckpt.step), evaluation=True)
-                done = True
-                reward_sum = 0
-                frames = []
+                break
 
     def get_epsilon(self):
         """
@@ -331,4 +333,5 @@ class DQNAgent:
         Updates the parameters of the target network
         with the parameters of the Q network.
         """
+        print('Updating Target Network...')
         self.target_q_network.set_weights(self.q_network.get_weights())
