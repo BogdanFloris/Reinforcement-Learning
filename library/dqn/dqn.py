@@ -4,7 +4,6 @@ Human-level control through deep reinforcement learning.
 """
 import os
 import sys
-sys.path.append('../')
 import itertools
 from datetime import datetime
 import tensorflow as tf

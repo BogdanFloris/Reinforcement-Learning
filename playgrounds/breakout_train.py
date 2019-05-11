@@ -2,7 +2,9 @@
 Training for the game of breakout
 """
 import sys
-sys.path.append('../')
+from pathlib import Path
+p = Path(__file__).resolve().parents[1]
+sys.path.append(str(p))
 from library.dqn.dqn import DQNAgent
 
 # make environment
